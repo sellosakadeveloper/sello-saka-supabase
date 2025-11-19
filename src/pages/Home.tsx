@@ -86,16 +86,16 @@ const Home = () => {
                 Donate Now
               </Link>
             </Button>
-            <Button 
-              asChild 
-              size="lg" 
-              variant="outline" 
-              className="border-2 border-gold-600 text-white hover:bg-gold-600/10 text-lg h-14 px-8"
-            >
-              <Link to="/apply">
-                Apply for Assistance
-              </Link>
-            </Button>
+          <Button 
+            asChild 
+            size="lg" 
+            variant="outline" 
+            className="border-2 border-gold-600 bg-transparent text-gold-600 hover:bg-white hover:text-navy-primary text-lg h-14 px-8"
+          >
+            <Link to="/apply">
+              Apply for Assistance
+            </Link>
+          </Button>
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">

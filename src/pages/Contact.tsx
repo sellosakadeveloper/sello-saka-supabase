@@ -8,9 +8,11 @@ import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -19,13 +21,32 @@ const Contact = () => {
     message: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Message Sent!",
-      description: "We'll get back to you as soon as possible.",
-    });
-    setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("contact_messages")
+        .insert([formData]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Message Sent!",
+        description: "We'll get back to you as soon as possible.",
+      });
+      setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error sending message:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,8 +76,8 @@ const Contact = () => {
                   <Mail className="w-6 h-6 text-gold-600" />
                 </div>
                 <h3 className="text-xl font-bold text-navy-primary mb-2">Email</h3>
-                <a 
-                  href="mailto:info@sellosaka.org" 
+                <a
+                  href="mailto:info@sellosaka.org"
                   className="text-gold-600 hover:text-gold-400 transition-colors"
                 >
                   info@sellosaka.org
@@ -68,8 +89,8 @@ const Contact = () => {
                   <Phone className="w-6 h-6 text-gold-600" />
                 </div>
                 <h3 className="text-xl font-bold text-navy-primary mb-2">Phone</h3>
-                <a 
-                  href="tel:+27123456789" 
+                <a
+                  href="tel:+27123456789"
                   className="text-gold-600 hover:text-gold-400 transition-colors"
                 >
                   +27 12 345 6789
@@ -100,7 +121,7 @@ const Contact = () => {
             <div className="lg:col-span-2">
               <Card className="border-2 border-navy-600 p-8">
                 <h2 className="text-3xl font-bold text-navy-primary mb-6">Send us a Message</h2>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <Label htmlFor="name">Full Name</Label>
@@ -164,12 +185,13 @@ const Contact = () => {
                     />
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14"
+                    disabled={loading}
                   >
                     <Send className="w-5 h-5 mr-2" />
-                    Send Message
+                    {loading ? "Sending..." : "Send Message"}
                   </Button>
                 </form>
               </Card>

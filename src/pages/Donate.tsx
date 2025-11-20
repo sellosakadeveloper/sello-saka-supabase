@@ -8,24 +8,81 @@ import { Heart, CreditCard, Building, Smartphone, CheckCircle2 } from "lucide-re
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Donate = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [donationType, setDonationType] = useState("once");
   const [selectedAmount, setSelectedAmount] = useState("");
   const [customAmount, setCustomAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Thank You!",
-      description: "Your donation makes a real difference in survivors' lives.",
-    });
+    setLoading(true);
+
+    const amount = selectedAmount || customAmount;
+
+    if (!amount) {
+      toast({
+        title: "Error",
+        description: "Please select or enter a donation amount.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (!paymentMethod) {
+      toast({
+        title: "Error",
+        description: "Please select a payment method.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("donations")
+        .insert([{
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          amount: parseFloat(amount),
+          donation_type: donationType,
+          payment_method: paymentMethod,
+          status: "pending" // Default status
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Thank You!",
+        description: "Your donation details have been recorded. You would normally be redirected to payment gateway now.",
+      });
+      // Reset form
+      setFormData({ name: "", email: "", phone: "" });
+      setSelectedAmount("");
+      setCustomAmount("");
+      setPaymentMethod("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to process donation details. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error processing donation:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const amounts = ["50", "100", "250", "500", "1000"];
@@ -133,7 +190,7 @@ const Donate = () => {
                 {/* Donor Information */}
                 <div className="space-y-4">
                   <Label className="text-lg font-semibold mb-4 block">Your Information</Label>
-                  
+
                   <div>
                     <Label htmlFor="name">Full Name</Label>
                     <Input
@@ -176,31 +233,52 @@ const Donate = () => {
                 <div>
                   <Label className="text-lg font-semibold mb-4 block">Payment Method</Label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Button type="button" variant="outline" className="h-20 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "card" ? "default" : "outline"}
+                      className={`h-20 flex flex-col gap-2 ${paymentMethod === "card" ? "bg-gold-600 text-navy-primary" : ""}`}
+                      onClick={() => setPaymentMethod("card")}
+                    >
                       <CreditCard className="w-6 h-6" />
                       <span className="text-xs">Card</span>
                     </Button>
-                    <Button type="button" variant="outline" className="h-20 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "eft" ? "default" : "outline"}
+                      className={`h-20 flex flex-col gap-2 ${paymentMethod === "eft" ? "bg-gold-600 text-navy-primary" : ""}`}
+                      onClick={() => setPaymentMethod("eft")}
+                    >
                       <Building className="w-6 h-6" />
                       <span className="text-xs">EFT</span>
                     </Button>
-                    <Button type="button" variant="outline" className="h-20 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "payfast" ? "default" : "outline"}
+                      className={`h-20 flex flex-col gap-2 ${paymentMethod === "payfast" ? "bg-gold-600 text-navy-primary" : ""}`}
+                      onClick={() => setPaymentMethod("payfast")}
+                    >
                       <Smartphone className="w-6 h-6" />
                       <span className="text-xs">PayFast</span>
                     </Button>
-                    <Button type="button" variant="outline" className="h-20 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "paypal" ? "default" : "outline"}
+                      className={`h-20 flex flex-col gap-2 ${paymentMethod === "paypal" ? "bg-gold-600 text-navy-primary" : ""}`}
+                      onClick={() => setPaymentMethod("paypal")}
+                    >
                       <CreditCard className="w-6 h-6" />
                       <span className="text-xs">PayPal</span>
                     </Button>
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14"
+                  disabled={loading}
                 >
                   <Heart className="w-5 h-5 mr-2" />
-                  Complete Donation
+                  {loading ? "Processing..." : "Complete Donation"}
                 </Button>
 
                 <div className="bg-beige-200 border-l-4 border-gold-600 p-4 mt-6">
@@ -222,7 +300,7 @@ const Donate = () => {
       <section className="py-20 bg-navy-primary">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl font-bold text-white mb-12 text-center">Where Your Donation Goes</h2>
-          
+
           <div className="max-w-4xl mx-auto">
             <Card className="bg-navy-600 border-gold-800 p-8">
               <div className="space-y-6">

@@ -9,6 +9,7 @@ import ApplicationsTab from "@/components/admin/ApplicationsTab";
 import DonorsTab from "@/components/admin/DonorsTab";
 import CompetitionsTab from "@/components/admin/CompetitionsTab";
 import MetricsTab from "@/components/admin/MetricsTab";
+import ContactSubmissionsTab from "@/components/admin/ContactSubmissionsTab";
 
 const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -22,7 +23,7 @@ const Admin = () => {
 
   const checkAdminStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       navigate("/auth");
       return;
@@ -88,6 +89,7 @@ const Admin = () => {
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="donors">Donors</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
+            <TabsTrigger value="contact">Contact</TabsTrigger>
             <TabsTrigger value="metrics">Impact Metrics</TabsTrigger>
           </TabsList>
 
@@ -101,6 +103,10 @@ const Admin = () => {
 
           <TabsContent value="competitions">
             <CompetitionsTab />
+          </TabsContent>
+
+          <TabsContent value="contact">
+            <ContactSubmissionsTab />
           </TabsContent>
 
           <TabsContent value="metrics">

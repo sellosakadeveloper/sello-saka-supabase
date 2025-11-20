@@ -9,9 +9,11 @@ import { Heart, FileText, CheckCircle2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Apply = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     survivorName: "",
     dateOfBirth: "",
@@ -42,12 +44,57 @@ const Apply = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Application Submitted!",
-      description: "We'll review your application and contact you within 5 business days.",
-    });
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("applications")
+        .insert([{
+          survivor_name: formData.survivorName,
+          date_of_birth: formData.dateOfBirth,
+          guardian_name: formData.guardianName,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          diagnosis_details: formData.diagnosisDetails,
+          treatment_details: formData.treatmentDetails,
+          current_challenges: formData.currentChallenges,
+          programs_interested: formData.programsInterested,
+          consent: formData.consent
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Application Submitted!",
+        description: "We'll review your application and contact you within 5 business days.",
+      });
+      // Reset form
+      setFormData({
+        survivorName: "",
+        dateOfBirth: "",
+        guardianName: "",
+        email: "",
+        phone: "",
+        address: "",
+        diagnosisDetails: "",
+        treatmentDetails: "",
+        currentChallenges: "",
+        programsInterested: [],
+        consent: false
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error submitting application:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,7 +120,7 @@ const Apply = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-navy-primary mb-8 text-center">Eligibility Criteria</h2>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="border-2 border-gold-600 p-6">
                 <div className="flex gap-3">
@@ -133,14 +180,14 @@ const Apply = () => {
           <div className="max-w-4xl mx-auto">
             <Card className="border-2 border-navy-600 p-8">
               <h2 className="text-3xl font-bold text-navy-primary mb-8">Application Form</h2>
-              
+
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Survivor Information */}
                 <div className="space-y-6">
                   <h3 className="text-xl font-semibold text-navy-primary border-b-2 border-gold-600 pb-2">
                     Survivor Information
                   </h3>
-                  
+
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="survivorName">Survivor's Full Name *</Label>
@@ -172,7 +219,7 @@ const Apply = () => {
                   <h3 className="text-xl font-semibold text-navy-primary border-b-2 border-gold-600 pb-2">
                     Guardian/Contact Information
                   </h3>
-                  
+
                   <div>
                     <Label htmlFor="guardianName">Guardian's Full Name *</Label>
                     <Input
@@ -228,7 +275,7 @@ const Apply = () => {
                   <h3 className="text-xl font-semibold text-navy-primary border-b-2 border-gold-600 pb-2">
                     Medical History
                   </h3>
-                  
+
                   <div>
                     <Label htmlFor="diagnosisDetails">Cancer Diagnosis Details *</Label>
                     <Textarea
@@ -274,7 +321,7 @@ const Apply = () => {
                   <h3 className="text-xl font-semibold text-navy-primary border-b-2 border-gold-600 pb-2">
                     Programs of Interest *
                   </h3>
-                  
+
                   <div className="space-y-3">
                     {programs.map((program) => (
                       <div key={program} className="flex items-center gap-3">
@@ -308,13 +355,13 @@ const Apply = () => {
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14"
-                  disabled={!formData.consent || formData.programsInterested.length === 0}
+                  disabled={loading || !formData.consent || formData.programsInterested.length === 0}
                 >
                   <Heart className="w-5 h-5 mr-2" />
-                  Submit Application
+                  {loading ? "Submitting..." : "Submit Application"}
                 </Button>
 
                 <div className="bg-beige-200 border-l-4 border-gold-600 p-4">

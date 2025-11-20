@@ -280,11 +280,11 @@ const Programs = () => {
                 Apply for Assistance
               </Link>
             </Button>
-            <Button 
-              asChild 
-              size="lg" 
-              variant="outline" 
-              className="border-2 border-gold-600 text-white hover:bg-gold-600/10"
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="bg-transparent border-2 border-gold-600 text-gold-600 hover:bg-white hover:text-navy-primary"
             >
               <Link to="/contact">Contact Us</Link>
             </Button>

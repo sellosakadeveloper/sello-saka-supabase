@@ -26,7 +26,7 @@ const Home = () => {
     const timer = setInterval(() => {
       setCountdown(prev => {
         let { days, hours, minutes, seconds } = prev;
-        
+
         if (seconds > 0) {
           seconds--;
         } else if (minutes > 0) {
@@ -42,7 +42,7 @@ const Home = () => {
           minutes = 59;
           seconds = 59;
         }
-        
+
         return { days, hours, minutes, seconds };
       });
     }, 1000);
@@ -55,7 +55,7 @@ const Home = () => {
       <Header />
 
       {/* Hero Section */}
-      <section 
+      <section
         className="relative min-h-screen flex items-center justify-center bg-navy-primary bg-cover bg-center"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
@@ -64,21 +64,21 @@ const Home = () => {
           <div className="w-20 h-20 rounded-full bg-gold-600/20 border-2 border-gold-600 flex items-center justify-center mx-auto mb-8">
             <Heart className="w-10 h-10 text-gold-600" strokeWidth={1.5} />
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
             Empowering Childhood<br />Cancer Survivors.
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-gold-400 mb-8 max-w-3xl mx-auto">
             Restoring futures. Building resilience. Ensuring every survivor thrives.
           </p>
-          
+
           <p className="text-gray-400 mb-12 max-w-2xl mx-auto text-lg">
             The Sello Saka Foundation is dedicated to providing comprehensive,
             long-term support for survivors of early childhood cancer,
             addressing late effects and promoting holistic recovery.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14 px-8">
               <Link to="/donate">
@@ -86,16 +86,16 @@ const Home = () => {
                 Donate Now
               </Link>
             </Button>
-          <Button 
-            asChild 
-            size="lg" 
-            variant="outline" 
-            className="border-2 border-gold-600 bg-transparent text-gold-600 hover:bg-white hover:text-navy-primary text-lg h-14 px-8"
-          >
-            <Link to="/apply">
-              Apply for Assistance
-            </Link>
-          </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-2 border-gold-600 bg-transparent text-gold-600 hover:bg-white hover:text-navy-primary text-lg h-14 px-8"
+            >
+              <Link to="/apply">
+                Apply for Assistance
+              </Link>
+            </Button>
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
@@ -239,7 +239,7 @@ const Home = () => {
           </div>
 
           <div className="text-center mt-8">
-            <Button asChild variant="outline" className="border-gold-600 text-white hover:bg-gold-600/10">
+            <Button asChild variant="outline" className="bg-transparent border-gold-600 text-gold-600 hover:bg-white hover:text-navy-primary">
               <Link to="/programs">Learn More About Our Programs</Link>
             </Button>
           </div>
@@ -347,7 +347,7 @@ const Home = () => {
                 <span className="text-gold-600 text-sm font-semibold">Exclusive Fundraising Event</span>
               </div>
             </div>
-            
+
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               Win Big, Support Lives
             </h2>
@@ -363,7 +363,7 @@ const Home = () => {
 
           <Card className="bg-navy-primary/50 border-gold-800 p-8 mt-8">
             <h3 className="text-2xl font-bold text-white text-center mb-8">Time Remaining</h3>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <div className="bg-navy-primary rounded-lg p-6 text-center border border-gold-800">
                 <div className="text-4xl font-bold text-gold-600 mb-2">{String(countdown.days).padStart(2, '0')}</div>
@@ -385,7 +385,7 @@ const Home = () => {
 
             <div className="text-center">
               <p className="text-white mb-4">Don't miss out on this incredible opportunity!</p>
-              <Button asChild variant="outline" className="border-gold-600 text-white hover:bg-gold-600/10">
+              <Button asChild variant="outline" className="bg-transparent border-gold-600 text-gold-600 hover:bg-white hover:text-navy-primary">
                 <Link to="/competition">Enter Now</Link>
               </Button>
             </div>
@@ -464,7 +464,7 @@ const Home = () => {
           </div>
 
           <div className="text-center mt-8">
-            <Button asChild variant="outline" className="border-gold-600 text-white hover:bg-gold-600/10">
+            <Button asChild variant="outline" className="bg-transparent border-gold-600 text-gold-600 hover:bg-white hover:text-navy-primary">
               <Link to="/impact">Read More Stories</Link>
             </Button>
           </div>

@@ -12,10 +12,10 @@ interface ActiveCompetitionProps {
         id: string;
         title: string;
         description: string;
-        prize: string;
-        second_prize?: string | null;
-        third_prize?: string | null;
-        ticket_price: number;
+        prize_first: string | null;
+        prize_second: string | null;
+        prize_third: string | null;
+        entry_fee: number;
         end_date: string;
     };
 }
@@ -101,7 +101,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                 .from("competition_entries")
                 .insert([{
                     competition_id: competition.id,
-                    name: formData.name,
+                    full_name: formData.name,
                     email: formData.email,
                     phone: formData.phone,
                     proof_of_payment_url: proofUrl,
@@ -196,26 +196,26 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                 <Trophy className="w-8 h-8 text-navy-primary" />
                             </div>
                             <h3 className="text-2xl font-bold text-navy-primary mb-3">1st Prize</h3>
-                            <p className="text-gray-600 text-lg mb-2">{competition.prize}</p>
+                            <p className="text-gray-600 text-lg mb-2">{competition.prize_first}</p>
                         </Card>
 
-                        {competition.second_prize && (
+                        {competition.prize_second && (
                             <Card className="border-2 border-navy-600 p-8 text-center hover:shadow-xl transition-shadow">
                                 <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center mx-auto mb-4">
                                     <Trophy className="w-8 h-8 text-gold-600" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-navy-primary mb-3">2nd Prize</h3>
-                                <p className="text-gray-600 text-lg mb-2">{competition.second_prize}</p>
+                                <p className="text-gray-600 text-lg mb-2">{competition.prize_second}</p>
                             </Card>
                         )}
 
-                        {competition.third_prize && (
+                        {competition.prize_third && (
                             <Card className="border-2 border-navy-600 p-8 text-center hover:shadow-xl transition-shadow">
                                 <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center mx-auto mb-4">
                                     <Trophy className="w-8 h-8 text-gold-600" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-navy-primary mb-3">3rd Prize</h3>
-                                <p className="text-gray-600 text-lg mb-2">{competition.third_prize}</p>
+                                <p className="text-gray-600 text-lg mb-2">{competition.prize_third}</p>
                             </Card>
                         )}
                     </div>
@@ -235,7 +235,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                             </div>
                             <h3 className="text-white font-semibold mb-2">Make a Donation</h3>
                             <p className="text-gray-400 text-sm">
-                                Entry costs R{competition.ticket_price}. Your contribution supports our programs.
+                                Entry costs R{competition.entry_fee}. Your contribution supports our programs.
                             </p>
                         </div>
 

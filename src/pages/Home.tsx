@@ -9,11 +9,9 @@ import team1 from "@/assets/team-1.jpg";
 import team2 from "@/assets/team-2.jpg";
 import team3 from "@/assets/team-3.jpg";
 import team4 from "@/assets/team-4.jpg";
-import impact1 from "@/assets/impact-1.jpg";
-import impact2 from "@/assets/impact-2.jpg";
-import impact3 from "@/assets/impact-3.jpg";
 import { useEffect, useState } from "react";
 import ActiveTeams from "@/components/ActiveTeams";
+import ActiveImpactStories from "@/components/ActiveImpactStories";
 
 const Home = () => {
   const [countdown, setCountdown] = useState({
@@ -317,64 +315,7 @@ const Home = () => {
             <p className="text-gray-400 text-lg">Real stories of resilience, recovery, and hope</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="bg-navy-600 border-gold-800 overflow-hidden">
-              <img src={impact1} alt="Impact Story 1" className="w-full h-48 object-cover" />
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-3">A Second Chance at Education</h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  After treatment, 12-year-old Liyema struggled with cognitive late effects. Our Educational Assistance Program provided the breakthrough tutoring she needed.
-                </p>
-                <div className="bg-navy-primary border-l-4 border-gold-600 p-4 mb-4">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className="text-gold-600 text-2xl">"</span>
-                  </div>
-                  <p className="text-gray-400 text-sm italic mb-2">
-                    "The foundation didn't just help Liyema catch up; they restored her confidence. She loves school again, and that is a miracle."
-                  </p>
-                  <p className="text-gold-600 text-sm">— Liyema M.</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-navy-600 border-gold-800 overflow-hidden">
-              <img src={impact2} alt="Impact Story 2" className="w-full h-48 object-cover" />
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-3">Finding Confidence After the Fight</h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  The social isolation after remission left Sipho struggling for Sipho. Through the Social Integration program, he found peers and mentors who understood his journey.
-                </p>
-                <div className="bg-navy-primary border-l-4 border-gold-600 p-4 mb-4">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className="text-gold-600 text-2xl">"</span>
-                  </div>
-                  <p className="text-gray-400 text-sm italic mb-2">
-                    "I felt like no one understood what I went through, until I met the Sello Saka team. Now I know I'm not fighting alone."
-                  </p>
-                  <p className="text-gold-600 text-sm">— Sipho D.</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-navy-600 border-gold-800 overflow-hidden">
-              <img src={impact3} alt="Impact Story 3" className="w-full h-48 object-cover" />
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-3">Navigating Long-Term Health</h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  Lebogang, a young adult survivor, receives continuous Medical Support for late-onset heart complications, ensuring she receives specialized cardiology care.
-                </p>
-                <div className="bg-navy-primary border-l-4 border-gold-600 p-4 mb-4">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className="text-gold-600 text-2xl">"</span>
-                  </div>
-                  <p className="text-gray-400 text-sm italic mb-2">
-                    "Their medical liaison service is invaluable. They help me manage complex care, letting me focus on living my life, not just managing my illness."
-                  </p>
-                  <p className="text-gold-600 text-sm">— Lebogang T.</p>
-                </div>
-              </div>
-            </Card>
-          </div>
+          <ActiveImpactStories variant="grid" limit={3} />
 
           <div className="text-center mt-8">
             <Button asChild variant="outline" className="bg-transparent border-gold-600 text-gold-600 hover:bg-white hover:text-navy-primary">

@@ -11,7 +11,9 @@ import CompetitionsTab from "@/components/admin/CompetitionsTab";
 import CompetitionEntriesTab from "@/components/admin/CompetitionEntriesTab";
 import MetricsTab from "@/components/admin/MetricsTab";
 import ContactSubmissionsTab from "@/components/admin/ContactSubmissionsTab";
+
 import TeamsTab from "@/components/admin/TeamsTab";
+import ImpactStoriesTab from "@/components/admin/ImpactStoriesTab";
 
 const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -87,14 +89,16 @@ const Admin = () => {
 
       <main className="container mx-auto p-6">
         <Tabs defaultValue="applications" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 bg-white h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 bg-white h-auto">
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="donors">Donors</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="entries">Entries</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
             <TabsTrigger value="metrics">Impact Metrics</TabsTrigger>
+
             <TabsTrigger value="teams">Teams</TabsTrigger>
+            <TabsTrigger value="stories">Stories</TabsTrigger>
           </TabsList>
 
           <TabsContent value="applications">
@@ -123,6 +127,10 @@ const Admin = () => {
 
           <TabsContent value="teams">
             <TeamsTab />
+          </TabsContent>
+
+          <TabsContent value="stories">
+            <ImpactStoriesTab />
           </TabsContent>
         </Tabs>
       </main>

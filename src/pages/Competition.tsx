@@ -9,10 +9,10 @@ interface CompetitionData {
   id: string;
   title: string;
   description: string;
-  prize: string;
-  second_prize?: string | null;
-  third_prize?: string | null;
-  ticket_price: number;
+  prize_first: string | null;
+  prize_second: string | null;
+  prize_third: string | null;
+  entry_fee: number;
   end_date: string;
 }
 
@@ -26,7 +26,7 @@ const Competition = () => {
         const { data, error } = await supabase
           .from("competitions")
           .select("*")
-          .eq("status", "active")
+          .eq("is_active", true)
           .single();
 
         if (error) {

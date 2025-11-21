@@ -67,22 +67,19 @@ const Competition = () => {
       let proofUrl = null;
 
       // Upload file if exists
+      // Upload file if exists
       if (file) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `${fileName}`;
 
-        // Note: This assumes a 'competition-proofs' bucket exists. 
-        // If not, this might fail or we should handle it.
-        // For now, we'll try to upload, but if it fails, we'll proceed without the URL 
-        // or show an error if strict.
         const { error: uploadError, data } = await supabase.storage
           .from('competition-proofs')
           .upload(filePath, file);
 
         if (uploadError) {
-          console.warn("File upload failed (bucket might not exist):", uploadError);
-          // Proceeding without file URL for now to ensure data is saved
+          console.error("File upload failed:", uploadError);
+          throw new Error("Failed to upload proof of payment");
         } else {
           proofUrl = data?.path;
         }

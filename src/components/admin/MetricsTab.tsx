@@ -175,42 +175,44 @@ const MetricsTab = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Metric Name</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Year</TableHead>
-              <TableHead>Last Updated</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {metrics.map((metric) => (
-              <TableRow key={metric.id}>
-                <TableCell>{metric.metric_name}</TableCell>
-                <TableCell className="text-gold-600 font-semibold">
-                  {metric.metric_value.toLocaleString()}
-                </TableCell>
-                <TableCell>{metric.metric_type}</TableCell>
-                <TableCell>{metric.year}</TableCell>
-                <TableCell>
-                  {new Date(metric.updated_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => deleteMetric(metric.id)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Metric Name</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Year</TableHead>
+                <TableHead>Last Updated</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {metrics.map((metric) => (
+                <TableRow key={metric.id}>
+                  <TableCell>{metric.metric_name}</TableCell>
+                  <TableCell className="text-gold-600 font-semibold">
+                    {metric.metric_value.toLocaleString()}
+                  </TableCell>
+                  <TableCell>{metric.metric_type}</TableCell>
+                  <TableCell>{metric.year}</TableCell>
+                  <TableCell>
+                    {new Date(metric.updated_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteMetric(metric.id)}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

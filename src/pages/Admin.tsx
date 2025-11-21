@@ -85,7 +85,7 @@ const Admin = () => {
 
       <main className="container mx-auto p-6">
         <Tabs defaultValue="applications" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 bg-white h-auto">
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="donors">Donors</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>

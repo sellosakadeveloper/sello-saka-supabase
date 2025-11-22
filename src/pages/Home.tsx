@@ -5,49 +5,17 @@ import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import heroImage from "@/assets/hero-bg.jpg";
+import logo from "@/assets/brand/svg/logo no background bigger.svg";
 import team1 from "@/assets/team-1.jpg";
 import team2 from "@/assets/team-2.jpg";
 import team3 from "@/assets/team-3.jpg";
 import team4 from "@/assets/team-4.jpg";
-import { useEffect, useState } from "react";
+
 import ActiveTeams from "@/components/ActiveTeams";
 import ActiveImpactStories from "@/components/ActiveImpactStories";
 
 const Home = () => {
-  const [countdown, setCountdown] = useState({
-    days: 29,
-    hours: 2,
-    minutes: 46,
-    seconds: 34
-  });
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        let { days, hours, minutes, seconds } = prev;
-
-        if (seconds > 0) {
-          seconds--;
-        } else if (minutes > 0) {
-          minutes--;
-          seconds = 59;
-        } else if (hours > 0) {
-          hours--;
-          minutes = 59;
-          seconds = 59;
-        } else if (days > 0) {
-          days--;
-          hours = 23;
-          minutes = 59;
-          seconds = 59;
-        }
-
-        return { days, hours, minutes, seconds };
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -60,9 +28,7 @@ const Home = () => {
       >
         <div className="absolute inset-0 bg-navy-primary/80" />
         <div className="relative container mx-auto px-4 text-center">
-          <div className="w-20 h-20 rounded-full bg-gold-600/20 border-2 border-gold-600 flex items-center justify-center mx-auto mb-8">
-            <Heart className="w-10 h-10 text-gold-600" strokeWidth={1.5} />
-          </div>
+          <img src={logo} alt="Sello Saka Foundation" className="h-32 w-auto mx-auto mb-8" />
 
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
             Empowering Childhood<br />Cancer Survivors.
@@ -272,35 +238,7 @@ const Home = () => {
             </Button>
           </Card>
 
-          <Card className="bg-navy-primary/50 border-gold-800 p-8 mt-8">
-            <h3 className="text-2xl font-bold text-white text-center mb-8">Time Remaining</h3>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-navy-primary rounded-lg p-6 text-center border border-gold-800">
-                <div className="text-4xl font-bold text-gold-600 mb-2">{String(countdown.days).padStart(2, '0')}</div>
-                <div className="text-gray-400 text-sm uppercase tracking-wide">Days</div>
-              </div>
-              <div className="bg-navy-primary rounded-lg p-6 text-center border border-gold-800">
-                <div className="text-4xl font-bold text-gold-600 mb-2">{String(countdown.hours).padStart(2, '0')}</div>
-                <div className="text-gray-400 text-sm uppercase tracking-wide">Hours</div>
-              </div>
-              <div className="bg-navy-primary rounded-lg p-6 text-center border border-gold-800">
-                <div className="text-4xl font-bold text-gold-600 mb-2">{String(countdown.minutes).padStart(2, '0')}</div>
-                <div className="text-gray-400 text-sm uppercase tracking-wide">Minutes</div>
-              </div>
-              <div className="bg-navy-primary rounded-lg p-6 text-center border border-gold-800">
-                <div className="text-4xl font-bold text-gold-600 mb-2">{String(countdown.seconds).padStart(2, '0')}</div>
-                <div className="text-gray-400 text-sm uppercase tracking-wide">Seconds</div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <p className="text-white mb-4">Don't miss out on this incredible opportunity!</p>
-              <Button asChild variant="outline" className="bg-transparent border-gold-600 text-gold-600 hover:bg-white hover:text-navy-primary">
-                <Link to="/competition">Enter Now</Link>
-              </Button>
-            </div>
-          </Card>
         </div>
       </section>
 

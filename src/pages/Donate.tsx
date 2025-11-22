@@ -64,9 +64,54 @@ const Donate = () => {
 
       if (error) throw error;
 
+      if (paymentMethod === "payfast") {
+        try {
+          const { data: pfData, error: pfError } = await supabase.functions.invoke('payfast-signature', {
+            body: {
+              amount: amount,
+              item_name: donationType === 'monthly' ? 'Monthly Donation' : 'Donation',
+              name: formData.name,
+              email: formData.email
+            }
+          });
+
+          if (pfError) throw pfError;
+
+          const { signature, data } = pfData;
+          const allData = { ...data, signature };
+
+          // Create and submit form
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = "https://sandbox.payfast.co.za/eng/process";
+          form.style.display = "none";
+
+          for (const key in allData) {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = key;
+            input.value = allData[key];
+            form.appendChild(input);
+          }
+
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        } catch (pfError) {
+          console.error("PayFast Error:", pfError);
+          toast({
+            title: "Payment Error",
+            description: "Failed to initialize PayFast payment. Please try again.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       toast({
         title: "Thank You!",
-        description: "Your donation details have been recorded. You would normally be redirected to payment gateway now.",
+        description: "Your donation details have been recorded.",
       });
       // Reset form
       setFormData({ name: "", email: "", phone: "" });

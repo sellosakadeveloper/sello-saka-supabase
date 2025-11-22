@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Heart, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, MessageCircle } from "lucide-react";
+import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, MessageCircle } from "lucide-react";
+import logo from "@/assets/brand/svg/logo no background bigger.svg";
 
 const Footer = () => {
   return (
@@ -8,9 +9,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-gold-600 flex items-center justify-center">
-                <Heart className="w-6 h-6 text-navy-primary" fill="currentColor" />
-              </div>
+              <img src={logo} alt="Sello Saka Foundation" className="h-12 w-auto" />
               <div>
                 <div className="text-white font-bold text-lg">Sello Saka</div>
                 <div className="text-gold-600 text-sm">Foundation</div>

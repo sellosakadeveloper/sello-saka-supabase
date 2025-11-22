@@ -117,46 +117,52 @@ export type Database = {
           created_at: string | null
           description: string
           end_date: string
-          entry_fee: number
+          ticket_price: number
           id: string
           image_url: string | null
-          is_active: boolean | null
-          prize_details: string
-          prize_first: string | null
-          prize_second: string | null
-          prize_third: string | null
+          status: string | null
+          prize: string | null
+          second_prize: string | null
+          third_prize: string | null
           start_date: string
           title: string
+          max_tickets: number | null
+          winner_id: string | null
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           description: string
           end_date: string
-          entry_fee: number
+          ticket_price: number
           id?: string
           image_url?: string | null
-          is_active?: boolean | null
-          prize_details: string
-          prize_first?: string | null
-          prize_second?: string | null
-          prize_third?: string | null
+          status?: string | null
+          prize?: string | null
+          second_prize?: string | null
+          third_prize?: string | null
           start_date: string
           title: string
+          max_tickets?: number | null
+          winner_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string
           end_date?: string
-          entry_fee?: number
+          ticket_price?: number
           id?: string
           image_url?: string | null
-          is_active?: boolean | null
-          prize_details?: string
-          prize_first?: string | null
-          prize_second?: string | null
-          prize_third?: string | null
+          status?: string | null
+          prize?: string | null
+          second_prize?: string | null
+          third_prize?: string | null
           start_date?: string
           title?: string
+          max_tickets?: number | null
+          winner_id?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

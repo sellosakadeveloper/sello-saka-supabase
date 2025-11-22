@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { Heart, Menu, X } from "lucide-react";
+import { Menu, X, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import logo from "@/assets/brand/svg/logo no background bigger.svg";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,9 +12,7 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gold-600 flex items-center justify-center">
-              <Heart className="w-6 h-6 text-navy-primary" fill="currentColor" />
-            </div>
+            <img src={logo} alt="Sello Saka Foundation" className="h-12 w-auto" />
             <div>
               <div className="text-white font-bold text-lg">Sello Saka</div>
               <div className="text-gold-600 text-sm">Foundation</div>

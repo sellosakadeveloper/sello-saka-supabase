@@ -26,13 +26,24 @@ const Competition = () => {
         const { data, error } = await supabase
           .from("competitions")
           .select("*")
-          .eq("is_active", true)
+          .eq("status", "active")
           .single();
 
         if (error) {
           console.error("Error fetching active competition:", error);
         } else {
-          setActiveCompetition(data);
+          // Map the database fields to the component's expected format
+          const mappedCompetition: CompetitionData = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            prize_first: data.prize, // Map prize to prize_first
+            prize_second: data.second_prize, // Map second_prize to prize_second
+            prize_third: data.third_prize, // Map third_prize to prize_third
+            entry_fee: data.ticket_price, // Map ticket_price to entry_fee
+            end_date: data.end_date,
+          };
+          setActiveCompetition(mappedCompetition);
         }
       } catch (error) {
         console.error("Error:", error);

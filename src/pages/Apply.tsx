@@ -46,6 +46,26 @@ const Apply = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Calculate age
+    const birthDate = new Date(formData.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    // Check if age is less than 10
+    if (age < 10) {
+      toast({
+        title: "Age Restriction",
+        description: "Applicants must be at least 10 years old to apply for assistance.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {

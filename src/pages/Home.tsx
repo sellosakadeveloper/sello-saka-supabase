@@ -94,8 +94,8 @@ const Home = () => {
           </FadeIn>
 
           <div className="grid md:grid-cols-2 gap-8 mb-12">
-            <FadeIn direction="right" delay={0.2}>
-              <HoverCard>
+            <FadeIn direction="right" delay={0.2} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="bg-navy-600 border-gold-800 p-8 h-full">
                   <div className="w-12 h-12 rounded-lg bg-gold-600/20 flex items-center justify-center mb-4">
                     <Heart className="w-6 h-6 text-gold-600" />
@@ -110,8 +110,8 @@ const Home = () => {
               </HoverCard>
             </FadeIn>
 
-            <FadeIn direction="left" delay={0.4}>
-              <HoverCard>
+            <FadeIn direction="left" delay={0.4} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="bg-navy-600 border-gold-800 p-8 h-full">
                   <div className="w-12 h-12 rounded-lg bg-gold-600/20 flex items-center justify-center mb-4">
                     <Heart className="w-6 h-6 text-gold-600" />

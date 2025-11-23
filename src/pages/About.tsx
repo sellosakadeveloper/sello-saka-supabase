@@ -64,8 +64,8 @@ const About = () => {
       <section className="py-20 bg-navy-primary">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            <FadeIn direction="right" delay={0.2}>
-              <HoverCard>
+            <FadeIn direction="right" delay={0.2} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="bg-navy-600 border-gold-800 p-10 h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/20 flex items-center justify-center mb-6">
                     <Target className="w-8 h-8 text-gold-600" />
@@ -79,8 +79,8 @@ const About = () => {
               </HoverCard>
             </FadeIn>
 
-            <FadeIn direction="left" delay={0.4}>
-              <HoverCard>
+            <FadeIn direction="left" delay={0.4} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="bg-navy-600 border-gold-800 p-10 h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/20 flex items-center justify-center mb-6">
                     <Heart className="w-8 h-8 text-gold-600" />

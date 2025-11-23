@@ -260,8 +260,8 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                     </FadeIn>
 
                     <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                        <FadeIn direction="up" delay={0.2}>
-                            <HoverCard>
+                        <FadeIn direction="up" delay={0.2} className="h-full">
+                            <HoverCard className="h-full">
                                 <Card className="border-2 border-gold-600 p-8 text-center hover:shadow-xl transition-shadow md:col-start-1 md:col-end-2 h-full">
                                     <div className="w-16 h-16 rounded-full bg-gold-600 flex items-center justify-center mx-auto mb-4">
                                         <Trophy className="w-8 h-8 text-navy-primary" />
@@ -273,8 +273,8 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                         </FadeIn>
 
                         {competition.prize_second && (
-                            <FadeIn direction="up" delay={0.4}>
-                                <HoverCard>
+                            <FadeIn direction="up" delay={0.4} className="h-full">
+                                <HoverCard className="h-full">
                                     <Card className="border-2 border-navy-600 p-8 text-center hover:shadow-xl transition-shadow h-full">
                                         <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center mx-auto mb-4">
                                             <Trophy className="w-8 h-8 text-gold-600" />
@@ -287,8 +287,8 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                         )}
 
                         {competition.prize_third && (
-                            <FadeIn direction="up" delay={0.6}>
-                                <HoverCard>
+                            <FadeIn direction="up" delay={0.6} className="h-full">
+                                <HoverCard className="h-full">
                                     <Card className="border-2 border-navy-600 p-8 text-center hover:shadow-xl transition-shadow h-full">
                                         <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center mx-auto mb-4">
                                             <Trophy className="w-8 h-8 text-gold-600" />

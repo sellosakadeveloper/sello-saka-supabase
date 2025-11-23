@@ -107,8 +107,8 @@ const About = () => {
           </FadeIn>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <FadeIn direction="up" delay={0.2}>
-              <HoverCard>
+            <FadeIn direction="up" delay={0.2} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="border-2 border-navy-600 p-8 hover:border-gold-600 transition-colors h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/10 flex items-center justify-center mb-6 mx-auto">
                     <Heart className="w-8 h-8 text-gold-600" />
@@ -122,8 +122,8 @@ const About = () => {
               </HoverCard>
             </FadeIn>
 
-            <FadeIn direction="up" delay={0.4}>
-              <HoverCard>
+            <FadeIn direction="up" delay={0.4} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="border-2 border-navy-600 p-8 hover:border-gold-600 transition-colors h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/10 flex items-center justify-center mb-6 mx-auto">
                     <Users className="w-8 h-8 text-gold-600" />
@@ -137,8 +137,8 @@ const About = () => {
               </HoverCard>
             </FadeIn>
 
-            <FadeIn direction="up" delay={0.6}>
-              <HoverCard>
+            <FadeIn direction="up" delay={0.6} className="h-full">
+              <HoverCard className="h-full">
                 <Card className="border-2 border-navy-600 p-8 hover:border-gold-600 transition-colors h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/10 flex items-center justify-center mb-6 mx-auto">
                     <Award className="w-8 h-8 text-gold-600" />

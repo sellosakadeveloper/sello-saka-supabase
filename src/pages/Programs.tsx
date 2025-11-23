@@ -31,9 +31,9 @@ const Programs = () => {
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           {/* Medical Support */}
-          <FadeIn direction="up">
-            <div className="max-w-6xl mx-auto mb-20">
-              <HoverCard scale={1.01}>
+          <FadeIn direction="up" className="h-full">
+            <div className="max-w-6xl mx-auto mb-20 h-full">
+              <HoverCard scale={1.01} className="h-full">
                 <Card className="border-2 border-navy-600 overflow-hidden h-full">
                   <div className="bg-navy-primary p-8">
                     <div className="flex items-center gap-4 mb-4">
@@ -96,9 +96,9 @@ const Programs = () => {
           </FadeIn>
 
           {/* Psychological Care */}
-          <FadeIn direction="up" delay={0.2}>
-            <div className="max-w-6xl mx-auto mb-20">
-              <HoverCard scale={1.01}>
+          <FadeIn direction="up" delay={0.2} className="h-full">
+            <div className="max-w-6xl mx-auto mb-20 h-full">
+              <HoverCard scale={1.01} className="h-full">
                 <Card className="border-2 border-navy-600 overflow-hidden h-full">
                   <div className="bg-navy-600 p-8">
                     <div className="flex items-center gap-4 mb-4">
@@ -160,9 +160,9 @@ const Programs = () => {
           </FadeIn>
 
           {/* Educational Assistance */}
-          <FadeIn direction="up" delay={0.4}>
-            <div className="max-w-6xl mx-auto mb-20">
-              <HoverCard scale={1.01}>
+          <FadeIn direction="up" delay={0.4} className="h-full">
+            <div className="max-w-6xl mx-auto mb-20 h-full">
+              <HoverCard scale={1.01} className="h-full">
                 <Card className="border-2 border-navy-600 overflow-hidden h-full">
                   <div className="bg-navy-primary p-8">
                     <div className="flex items-center gap-4 mb-4">
@@ -223,9 +223,9 @@ const Programs = () => {
           </FadeIn>
 
           {/* Social Integration */}
-          <FadeIn direction="up" delay={0.6}>
-            <div className="max-w-6xl mx-auto mb-20">
-              <HoverCard scale={1.01}>
+          <FadeIn direction="up" delay={0.6} className="h-full">
+            <div className="max-w-6xl mx-auto mb-20 h-full">
+              <HoverCard scale={1.01} className="h-full">
                 <Card className="border-2 border-navy-600 overflow-hidden h-full">
                   <div className="bg-navy-600 p-8">
                     <div className="flex items-center gap-4 mb-4">

@@ -140,8 +140,8 @@ const Home = () => {
               { icon: Users, title: "Dignity", desc: "Upholding the inherent worth and self-respect of every survivor and family we serve." },
               { icon: Sparkles, title: "Integrity", desc: "Operating with unwavering honesty, transparency, and accountability in all our endeavors." }
             ].map((item, index) => (
-              <FadeIn key={item.title} direction="up" delay={0.2 * (index + 1)}>
-                <HoverCard>
+              <FadeIn key={item.title} direction="up" delay={0.2 * (index + 1)} className="h-full">
+                <HoverCard className="h-full">
                   <Card className="bg-navy-600 border-gold-800 p-6 h-full">
                     <div className="w-12 h-12 rounded-lg bg-gold-600/20 flex items-center justify-center mb-4">
                       <item.icon className="w-6 h-6 text-gold-600" />
@@ -178,8 +178,8 @@ const Home = () => {
               { icon: GraduationCap, title: "Educational Assistance", desc: "Offering tutoring, specialized learning materials, and advocacy within educational institutions to help survivors catch up and excel academically." },
               { icon: Users, title: "Social Integration", desc: "Creating community events, skill-building workshops, and mentorship opportunities to foster social confidence and independence." }
             ].map((item, index) => (
-              <FadeIn key={item.title} direction="up" delay={0.1 * (index + 1)}>
-                <HoverCard>
+              <FadeIn key={item.title} direction="up" delay={0.1 * (index + 1)} className="h-full">
+                <HoverCard className="h-full">
                   <Card className="bg-navy-primary border-gold-800 p-6 hover:border-gold-600 transition-colors h-full">
                     <div className="w-12 h-12 rounded-lg bg-gold-600/20 flex items-center justify-center mb-4">
                       <item.icon className="w-6 h-6 text-gold-600" />

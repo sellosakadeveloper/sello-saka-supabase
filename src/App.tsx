@@ -14,6 +14,7 @@ import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import ResourceHub from "./pages/ResourceHub";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/competition" element={<Competition />} />
           <Route path="/donate" element={<Donate />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/resources" element={<ResourceHub />} />
           <Route path="/apply" element={<Apply />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />

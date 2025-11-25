@@ -31,6 +31,7 @@ const Header = () => {
               { to: "/", label: "Home" },
               { to: "/about", label: "About" },
               { to: "/programs", label: "Programs" },
+              { to: "/resources", label: "Resources" },
               { to: "/impact", label: "Impact Stories" },
               { to: "/contact", label: "Contact" },
             ].map((link, index) => (
@@ -94,6 +95,7 @@ const Header = () => {
                 { to: "/", label: "Home" },
                 { to: "/about", label: "About" },
                 { to: "/programs", label: "Programs" },
+                { to: "/resources", label: "Resources" },
                 { to: "/impact", label: "Impact Stories" },
                 { to: "/contact", label: "Contact" },
               ].map((link, index) => (

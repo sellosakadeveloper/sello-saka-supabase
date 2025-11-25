@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
       applications: {
@@ -73,34 +68,40 @@ export type Database = {
       }
       competition_entries: {
         Row: {
+          age: number
           competition_id: string | null
           created_at: string | null
           email: string
           full_name: string
           id: string
+          media_url: string | null
           phone: string
-          proof_of_payment_url: string | null
           status: string | null
+          story: string | null
         }
         Insert: {
+          age: number
           competition_id?: string | null
           created_at?: string | null
           email: string
           full_name: string
           id?: string
+          media_url?: string | null
           phone: string
-          proof_of_payment_url?: string | null
           status?: string | null
+          story?: string | null
         }
         Update: {
+          age?: number
           competition_id?: string | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
+          media_url?: string | null
           phone?: string
-          proof_of_payment_url?: string | null
           status?: string | null
+          story?: string | null
         }
         Relationships: [
           {
@@ -117,255 +118,205 @@ export type Database = {
           created_at: string | null
           description: string
           end_date: string
-          ticket_price: number
+          hero_image_url: string | null
           id: string
-          image_url: string | null
-          status: string | null
-          prize: string | null
-          second_prize: string | null
-          third_prize: string | null
+          is_active: boolean | null
+          requirements: string[] | null
           start_date: string
           title: string
-          max_tickets: number | null
-          winner_id: string | null
-          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           description: string
           end_date: string
-          ticket_price: number
+          hero_image_url?: string | null
           id?: string
-          image_url?: string | null
-          status?: string | null
-          prize?: string | null
-          second_prize?: string | null
-          third_prize?: string | null
+          is_active?: boolean | null
+          requirements?: string[] | null
           start_date: string
           title: string
-          max_tickets?: number | null
-          winner_id?: string | null
-          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string
           end_date?: string
-          ticket_price?: number
+          hero_image_url?: string | null
           id?: string
-          image_url?: string | null
-          status?: string | null
-          prize?: string | null
-          second_prize?: string | null
-          third_prize?: string | null
+          is_active?: boolean | null
+          requirements?: string[] | null
           start_date?: string
           title?: string
-          max_tickets?: number | null
-          winner_id?: string | null
-          updated_at?: string | null
         }
         Relationships: []
       }
-      contact_messages: {
+      contact_submissions: {
         Row: {
           created_at: string | null
           email: string
-          first_name: string
           id: string
-          last_name: string
           message: string
-          phone: string | null
-          read: boolean | null
+          name: string
+          status: string | null
           subject: string
         }
         Insert: {
           created_at?: string | null
           email: string
-          first_name: string
           id?: string
-          last_name: string
           message: string
-          phone?: string | null
-          read?: boolean | null
+          name: string
+          status?: string | null
           subject: string
         }
         Update: {
           created_at?: string | null
           email?: string
-          first_name?: string
           id?: string
-          last_name?: string
           message?: string
-          phone?: string | null
-          read?: boolean | null
+          name?: string
+          status?: string | null
           subject?: string
         }
         Relationships: []
       }
-      donations: {
+      donors: {
         Row: {
           amount: number
           created_at: string | null
-          donor_id: string | null
+          email: string | null
           id: string
-          payment_method: string
-          payment_status: string
+          message: string | null
+          name: string | null
+          payment_method: string | null
+          payment_status: string | null
           transaction_id: string | null
         }
         Insert: {
           amount: number
           created_at?: string | null
-          donor_id?: string | null
+          email?: string | null
           id?: string
-          payment_method: string
-          payment_status?: string
+          message?: string | null
+          name?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
           transaction_id?: string | null
         }
         Update: {
           amount?: number
           created_at?: string | null
-          donor_id?: string | null
+          email?: string | null
           id?: string
-          payment_method?: string
-          payment_status?: string
+          message?: string | null
+          name?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
           transaction_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "donations_donor_id_fkey"
-            columns: ["donor_id"]
-            isOneToOne: false
-            referencedRelation: "donors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      donors: {
-        Row: {
-          created_at: string | null
-          email: string
-          first_name: string
-          id: string
-          last_name: string
-          phone: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          first_name: string
-          id?: string
-          last_name: string
-          phone?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          first_name?: string
-          id?: string
-          last_name?: string
-          phone?: string | null
-        }
-        Relationships: []
-      }
-      impact_metrics: {
-        Row: {
-          created_at: string | null
-          icon: string
-          id: string
-          label: string
-          updated_at: string | null
-          value: string
-        }
-        Insert: {
-          created_at?: string | null
-          icon: string
-          id?: string
-          label: string
-          updated_at?: string | null
-          value: string
-        }
-        Update: {
-          created_at?: string | null
-          icon?: string
-          id?: string
-          label?: string
-          updated_at?: string | null
-          value?: string
         }
         Relationships: []
       }
       impact_stories: {
         Row: {
-          category: string | null
+          author: string
+          category: string
           content: string
           created_at: string | null
+          date: string
+          excerpt: string
           id: string
           image_url: string | null
-          impact_summary: string | null
-          is_active: boolean | null
-          quote: string | null
-          quote_author: string | null
+          is_featured: boolean | null
           title: string
         }
         Insert: {
-          category?: string | null
+          author: string
+          category: string
           content: string
           created_at?: string | null
+          date: string
+          excerpt: string
           id?: string
           image_url?: string | null
-          impact_summary?: string | null
-          is_active?: boolean | null
-          quote?: string | null
-          quote_author?: string | null
+          is_featured?: boolean | null
           title: string
         }
         Update: {
-          category?: string | null
+          author?: string
+          category?: string
           content?: string
           created_at?: string | null
+          date?: string
+          excerpt?: string
           id?: string
           image_url?: string | null
-          impact_summary?: string | null
-          is_active?: boolean | null
-          quote?: string | null
-          quote_author?: string | null
+          is_featured?: boolean | null
           title?: string
         }
         Relationships: []
       }
-      teams: {
+      resources: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          file_url: string | null
+          id: string
+          summary: string | null
+          title: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          summary?: string | null
+          title: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          summary?: string | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      team_members: {
         Row: {
           bio: string | null
           created_at: string | null
           id: string
           image_url: string | null
-          is_active: boolean | null
-          linkedin_url: string | null
-          email: string | null
           name: string
+          order_index: number | null
           role: string
+          social_links: Json | null
         }
         Insert: {
           bio?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
-          is_active?: boolean | null
-          linkedin_url?: string | null
-          email?: string | null
           name: string
+          order_index?: number | null
           role: string
+          social_links?: Json | null
         }
         Update: {
           bio?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
-          is_active?: boolean | null
-          linkedin_url?: string | null
-          email?: string | null
           name?: string
+          order_index?: number | null
           role?: string
+          social_links?: Json | null
         }
         Relationships: []
       }
@@ -395,13 +346,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          user_id: string
-          role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

@@ -14,6 +14,7 @@ import ContactSubmissionsTab from "@/components/admin/ContactSubmissionsTab";
 
 import TeamsTab from "@/components/admin/TeamsTab";
 import ImpactStoriesTab from "@/components/admin/ImpactStoriesTab";
+import ResourcesTab from "@/components/admin/ResourcesTab";
 
 const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -99,6 +100,7 @@ const Admin = () => {
 
             <TabsTrigger value="teams">Teams</TabsTrigger>
             <TabsTrigger value="stories">Stories</TabsTrigger>
+            <TabsTrigger value="resources">Resources</TabsTrigger>
           </TabsList>
 
           <TabsContent value="applications">
@@ -131,6 +133,10 @@ const Admin = () => {
 
           <TabsContent value="stories">
             <ImpactStoriesTab />
+          </TabsContent>
+
+          <TabsContent value="resources">
+            <ResourcesTab />
           </TabsContent>
         </Tabs>
       </main>

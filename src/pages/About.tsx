@@ -36,23 +36,19 @@ const About = () => {
             <div className="prose prose-lg max-w-none">
               <FadeIn direction="up" delay={0.2}>
                 <p className="text-gray-600 mb-6">
-                  The Sello Saka Foundation was born from a deeply personal journey. Our co-founder, Thabo Sello,
-                  survived early childhood cancer but faced years of challenges that extended far beyond his medical
-                  treatment. The late effects—cognitive difficulties, social isolation, and ongoing health
-                  complications—revealed a significant gap in support systems for survivors.
+                  Sello Saka Foundation was born from a deeply personal journey — one that transformed pain into purpose.
                 </p>
-              </FadeIn>
-              <FadeIn direction="up" delay={0.4}>
                 <p className="text-gray-600 mb-6">
-                  Recognizing that surviving cancer is just the beginning of a much longer journey, Thabo partnered
-                  with healthcare professionals, educators, and fellow survivors to establish a foundation that addresses
-                  the holistic, long-term needs of childhood cancer survivors.
+                  Our founder’s younger brother was diagnosed with cancer, and what followed was a two-year battle that would change our family forever. The journey was not only physical but emotional, mental, and deeply human. The struggle resulted in amputation, and the journey continues even today as he adapts to life with a prosthetic leg and ongoing recovery.
                 </p>
-              </FadeIn>
-              <FadeIn direction="up" delay={0.6}>
+                <p className="text-gray-600 mb-6">
+                  Through this experience, our family witnessed firsthand the reality that many children and their families face — the fear, the uncertainty, the lack of information, and the emotional strain that continues long after treatment ends. We did not only fight cancer; we fought confusion, helplessness, and the silence that surrounds life after diagnosis.
+                </p>
+                <p className="text-gray-600 mb-6">
+                  In searching for answers, we discovered a painful truth: countless children and families are going through the same battles without guidance, emotional preparation, or sustained support. Many do not know what to do next. Many are unprepared for the long journey of survivorship and its lasting effects.
+                </p>
                 <p className="text-gray-600">
-                  Today, the Sello Saka Foundation stands as a beacon of hope, providing comprehensive medical,
-                  psychological, educational, and social support to ensure that every survivor not only survives but thrives.
+                  It was through these moments of struggle, learning, and reflection that the Sello Saka Foundation was founded. From the memories, the lessons, the pain, and the resilience of our family, a mission was formed — to support, educate, and empower families affected by childhood cancer and its after-effects.
                 </p>
               </FadeIn>
             </div>
@@ -60,41 +56,78 @@ const About = () => {
         </div>
       </section>
 
-      {/* Vision & Mission */}
+      {/* Why We Exist & Our Purpose */}
       <section className="py-20 bg-navy-primary">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            {/* Why We Exist */}
             <FadeIn direction="right" delay={0.2} className="h-full">
               <HoverCard className="h-full">
                 <Card className="bg-navy-600 border-gold-800 p-10 h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/20 flex items-center justify-center mb-6">
                     <Target className="w-8 h-8 text-gold-600" />
                   </div>
-                  <h3 className="text-3xl font-bold text-white mb-6">Our Vision</h3>
-                  <p className="text-gray-400 text-lg leading-relaxed">
-                    A world where every survivor of early childhood cancer thrives, realizing their full potential
-                    free from the lasting constraints of their diagnosis and treatment journey.
-                  </p>
+                  <h3 className="text-3xl font-bold text-white mb-6">Why We Exist</h3>
+                  <div className="text-gray-400 text-lg leading-relaxed space-y-4">
+                    <p>
+                      We exist because life after cancer is still a journey — one that requires preparation, counselling, and knowledge. Survivors and their families need more than medical treatment; they need understanding, emotional guidance, and practical support as they rebuild their lives.
+                    </p>
+                    <p>
+                      Sello Saka Foundation stands as a voice for those who are often unseen — the children who survive cancer and the families who walk beside them. We are here to ensure that no child or family feels alone in their journey.
+                    </p>
+                  </div>
                 </Card>
               </HoverCard>
             </FadeIn>
 
+            {/* Our Purpose */}
             <FadeIn direction="left" delay={0.4} className="h-full">
               <HoverCard className="h-full">
                 <Card className="bg-navy-600 border-gold-800 p-10 h-full">
                   <div className="w-16 h-16 rounded-full bg-gold-600/20 flex items-center justify-center mb-6">
                     <Heart className="w-8 h-8 text-gold-600" />
                   </div>
-                  <h3 className="text-3xl font-bold text-white mb-6">Our Mission</h3>
-                  <p className="text-gray-400 text-lg leading-relaxed">
-                    To provide holistic, sustained support—medical, psychological, educational, and social—to
-                    children and families navigating the long-term effects of early childhood cancer, ensuring
-                    dignity and a pathway to success.
-                  </p>
+                  <h3 className="text-3xl font-bold text-white mb-6">Our Purpose</h3>
+                  <div className="text-gray-400 text-lg leading-relaxed space-y-4">
+                    <p>
+                      Our purpose is to turn lived experience into shared strength. To take what we have learned as a family and use it to educate communities, raise awareness, and guide others through this difficult reality.
+                    </p>
+                    <p className="font-semibold text-white">We aim to:</p>
+                    <ul className="list-disc list-inside space-y-2 pl-2">
+                      <li>Prepare families mentally and emotionally for life after cancer</li>
+                      <li>Raise awareness about the long-term effects of childhood cancer</li>
+                      <li>Create safe spaces for support, healing, and understanding</li>
+                      <li>Empower survivors to live confidently beyond their diagnosis</li>
+                    </ul>
+                  </div>
                 </Card>
               </HoverCard>
             </FadeIn>
           </div>
+        </div>
+      </section>
+
+      {/* A Story of Pain, Courage & Hope */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4 text-center">
+          <FadeIn direction="up">
+            <h2 className="text-4xl font-bold text-navy-primary mb-8">A Story of Pain, Courage & Hope</h2>
+          </FadeIn>
+          <FadeIn direction="up" delay={0.2}>
+            <div className="max-w-4xl mx-auto text-lg text-gray-600 space-y-6">
+              <p>
+                Our foundation is not just an organisation — it is a reflection of resilience. It is built on the courage of a young boy who fought, on a family that endured, and on a belief that awareness, preparation, and compassion can change lives.
+              </p>
+              <div className="font-semibold text-navy-primary text-xl italic">
+                <p>From loss and struggle came vision.</p>
+                <p>From memory came action.</p>
+                <p>From pain came purpose.</p>
+              </div>
+              <p className="font-bold text-gold-600 text-2xl mt-8">
+                And that is how Sello Saka Foundation was born.
+              </p>
+            </div>
+          </FadeIn>
         </div>
       </section>
 

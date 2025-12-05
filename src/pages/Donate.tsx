@@ -268,7 +268,7 @@ const Donate = () => {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+27 12 345 6789"
+                      placeholder="+27 65 832 4028"
                       className="mt-2"
                     />
                   </div>

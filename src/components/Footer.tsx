@@ -92,19 +92,19 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start gap-2">
                 <Mail className="w-5 h-5 text-gold-600 mt-0.5" />
-                <a href="mailto:info@sellosaka.org" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
-                  info@sellosaka.org
+                <a href="mailto:sellosaka.care@gmail.com" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
+                  sellosaka.care@gmail.com
                 </a>
               </li>
               <li className="flex items-start gap-2">
                 <Phone className="w-5 h-5 text-gold-600 mt-0.5" />
-                <a href="tel:+27123456789" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
-                  +27 12 345 6789
+                <a href="tel:+27658324028" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
+                  +27 65 832 4028
                 </a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="w-5 h-5 text-gold-600 mt-0.5" />
-                <span className="text-gray-400 text-sm">Johannesburg, South Africa</span>
+                <span className="text-gray-400 text-sm">10 Sonate, Langenhoven Park, Bloemfontein, Free-state 9301</span>
               </li>
             </ul>
           </div>
@@ -130,7 +130,7 @@ const Footer = () => {
 
       {/* WhatsApp Floating Button */}
       <a
-        href="https://wa.me/27123456789"
+        href="https://wa.me/27658324028"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-8 right-8 w-14 h-14 bg-gold-600 hover:bg-gold-400 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-50"

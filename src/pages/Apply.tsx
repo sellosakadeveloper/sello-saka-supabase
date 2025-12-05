@@ -272,6 +272,7 @@ const Apply = () => {
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         required
+                        placeholder="+27 65 832 4028"
                         className="mt-2"
                       />
                     </div>

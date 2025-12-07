@@ -77,10 +77,10 @@ const Contact = () => {
                 </div>
                 <h3 className="text-xl font-bold text-navy-primary mb-2">Email</h3>
                 <a
-                  href="mailto:info@sellosaka.org"
+                  href="mailto:sellosaka.care@gmail.com"
                   className="text-gold-600 hover:text-gold-400 transition-colors"
                 >
-                  info@sellosaka.org
+                  sellosaka.care@gmail.com
                 </a>
               </Card>
 
@@ -90,10 +90,10 @@ const Contact = () => {
                 </div>
                 <h3 className="text-xl font-bold text-navy-primary mb-2">Phone</h3>
                 <a
-                  href="tel:+27123456789"
+                  href="tel:+27658324028"
                   className="text-gold-600 hover:text-gold-400 transition-colors"
                 >
-                  +27 12 345 6789
+                  +27 65 832 4028
                 </a>
               </Card>
 
@@ -103,7 +103,7 @@ const Contact = () => {
                 </div>
                 <h3 className="text-xl font-bold text-navy-primary mb-2">Location</h3>
                 <p className="text-gray-600">
-                  Johannesburg, South Africa
+                  10 Sonate, Langenhoven Park, Bloemfontein, Free-state 9301
                 </p>
               </Card>
 
@@ -155,7 +155,7 @@ const Contact = () => {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+27 12 345 6789"
+                      placeholder="+27 65 832 4028"
                       className="mt-2"
                     />
                   </div>

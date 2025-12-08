@@ -15,6 +15,7 @@ interface CompetitionData {
   prize_third: string | null;
   entry_fee: number;
   end_date: string;
+  hero_image_url?: string | null;
 }
 
 const Competition = () => {
@@ -43,6 +44,7 @@ const Competition = () => {
             prize_third: data.third_prize, // Map third_prize to prize_third
             entry_fee: data.ticket_price, // Map ticket_price to entry_fee
             end_date: data.end_date,
+            hero_image_url: data.image_url,
           };
           setActiveCompetition(mappedCompetition);
         }

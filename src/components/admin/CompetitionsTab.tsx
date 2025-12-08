@@ -14,17 +14,16 @@ import { Upload, X } from "lucide-react";
 interface Competition {
   id: string;
   title: string;
+  description: string;
   prize: string;
   second_prize?: string;
   third_prize?: string;
   ticket_price: number;
+  max_tickets?: number | null;
+  start_date: string;
   status: string;
   end_date: string;
-  badge_text?: string;
-  subtitle?: string;
-  hero_image_url?: string;
-  footer_text_1?: string;
-  footer_text_2?: string;
+  image_url?: string;
 }
 
 interface CompetitionEntry {
@@ -51,10 +50,7 @@ const CompetitionsTab = () => {
     max_tickets: "",
     start_date: "",
     end_date: "",
-    badge_text: "",
-    subtitle: "",
-    footer_text_1: "Secure & Transparent",
-    footer_text_2: "Verified Entries",
+    end_date: "",
   });
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [selectedCompetition, setSelectedCompetition] = useState<string | null>(null);
@@ -90,10 +86,58 @@ const CompetitionsTab = () => {
     }
   };
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // ... (keeping other existing state variables)
+
+  const handleEdit = (competition: Competition) => {
+    setEditingId(competition.id);
+    setFormData({
+      title: competition.title,
+      description: competition.description || "",
+      prize: competition.prize,
+      second_prize: competition.second_prize || "",
+      third_prize: competition.third_prize || "",
+      ticket_price: competition.ticket_price.toString(),
+      max_tickets: competition.max_tickets ? competition.max_tickets.toString() : "0",
+      start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
+      end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
+      start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
+      end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
+    });
+
+    // We can't easily set the file input, so we leave it null. If they upload a new one, we use it. If not, we keep the old one (logic updates image only if new file provided)
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this competition?")) return;
+
+    const { error } = await supabase
+      .from("competitions")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete competition",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Competition deleted successfully",
+    });
+    fetchCompetitions();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    let heroImageUrl = null;
+    let imageUrl = null;
 
     if (heroImageFile) {
       const fileExt = heroImageFile.name.split('.').pop();
@@ -118,31 +162,47 @@ const CompetitionsTab = () => {
         .from('competitions')
         .getPublicUrl(filePath);
 
-      heroImageUrl = publicUrl;
+      imageUrl = publicUrl;
     }
 
-    const { error } = await supabase.from("competitions").insert({
+    const submissionData = {
       title: formData.title,
       description: formData.description,
       prize: formData.prize,
       second_prize: formData.second_prize,
       third_prize: formData.third_prize,
-      ticket_price: parseFloat(formData.ticket_price),
-      max_tickets: parseInt(formData.max_tickets),
-      start_date: formData.start_date,
-      end_date: formData.end_date,
+      ticket_price: parseFloat(formData.ticket_price) || 0,
+      max_tickets: parseInt(formData.max_tickets) || 0,
+      start_date: new Date(formData.start_date).toISOString(),
+      end_date: new Date(formData.end_date).toISOString(),
       status: "active",
-      badge_text: formData.badge_text,
-      subtitle: formData.subtitle,
-      hero_image_url: heroImageUrl,
-      footer_text_1: formData.footer_text_1,
-      footer_text_2: formData.footer_text_2,
-    });
+      ...(imageUrl && { image_url: imageUrl }), // Only update image if a new one is uploaded
+    };
+
+    let error;
+
+    if (editingId) {
+      const { error: updateError } = await supabase
+        .from("competitions")
+        .update(submissionData)
+        .eq("id", editingId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("competitions")
+        .insert({
+          ...submissionData,
+          image_url: imageUrl // For insert, strictly use the new image url (or null)
+        });
+      error = insertError;
+    }
 
     if (error) {
+      console.error("Supabase Error:", error);
+      console.log("Submission Data:", submissionData);
       toast({
         title: "Error",
-        description: "Failed to create competition",
+        description: `Failed to ${editingId ? "update" : "create"} competition: ${error.message} ${(error as any).details || ''}`,
         variant: "destructive",
       });
       return;
@@ -150,9 +210,10 @@ const CompetitionsTab = () => {
 
     toast({
       title: "Success",
-      description: "Competition created successfully",
+      description: `Competition ${editingId ? "updated" : "created"} successfully`,
     });
     setShowForm(false);
+    setEditingId(null);
     setFormData({
       title: "",
       description: "",
@@ -163,10 +224,8 @@ const CompetitionsTab = () => {
       max_tickets: "",
       start_date: "",
       end_date: "",
-      badge_text: "",
-      subtitle: "",
-      footer_text_1: "Secure & Transparent",
-      footer_text_2: "Verified Entries",
+      start_date: "",
+      end_date: "",
     });
     setHeroImageFile(null);
     fetchCompetitions();
@@ -248,13 +307,31 @@ const CompetitionsTab = () => {
           <span>Competition Management</span>
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
-              <Button className="bg-gold-600 hover:bg-gold-400 text-navy-primary">
+              <Button
+                className="bg-gold-600 hover:bg-gold-400 text-navy-primary"
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({
+                    title: "",
+                    description: "",
+                    prize: "",
+                    second_prize: "",
+                    third_prize: "",
+                    ticket_price: "",
+                    max_tickets: "",
+                    start_date: "",
+                    end_date: "",
+                    start_date: "",
+                    end_date: "",
+                  });
+                }}
+              >
                 Create Competition
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Create New Competition</DialogTitle>
+                <DialogTitle>{editingId ? "Edit Competition" : "Create New Competition"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -273,26 +350,9 @@ const CompetitionsTab = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Badge Text</Label>
-                    <Input
-                      value={formData.badge_text}
-                      onChange={(e) => setFormData({ ...formData, badge_text: e.target.value })}
-                      placeholder="e.g., Limited Time Offer"
-                    />
-                  </div>
-                  <div>
-                    <Label>Subtitle</Label>
-                    <Input
-                      value={formData.subtitle}
-                      onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                      placeholder="e.g., Win a Family Wellness Getaway!"
-                    />
-                  </div>
-                </div>
+
                 <div>
-                  <Label>Hero Image</Label>
+                  <Label>Hero Image {editingId && "(Optional - Leave empty to keep existing)"}</Label>
                   <div className="mt-2 flex items-center gap-4">
                     <Input
                       type="file"
@@ -307,22 +367,7 @@ const CompetitionsTab = () => {
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Footer Text 1</Label>
-                    <Input
-                      value={formData.footer_text_1}
-                      onChange={(e) => setFormData({ ...formData, footer_text_1: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Footer Text 2</Label>
-                    <Input
-                      value={formData.footer_text_2}
-                      onChange={(e) => setFormData({ ...formData, footer_text_2: e.target.value })}
-                    />
-                  </div>
-                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label>1st Prize</Label>
@@ -389,7 +434,7 @@ const CompetitionsTab = () => {
                   </div>
                 </div>
                 <Button type="submit" className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary">
-                  Create Competition
+                  {editingId ? "Update Competition" : "Create Competition"}
                 </Button>
               </form>
             </DialogContent>
@@ -439,6 +484,13 @@ const CompetitionsTab = () => {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(comp)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
                         className="bg-green-600 hover:bg-green-700"
                         onClick={() => updateStatus(comp.id, "active")}
                       >
@@ -456,7 +508,14 @@ const CompetitionsTab = () => {
                         variant="outline"
                         onClick={() => viewEntries(comp.id)}
                       >
-                        View Entries
+                        Entries
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(comp.id)}
+                      >
+                        Delete
                       </Button>
                     </div>
                   </TableCell>

@@ -181,7 +181,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        className="border-gray-600 text-gray-300 hover:text-white hover:border-white hover:bg-white/5 font-semibold text-lg px-8 py-6 h-auto rounded-lg transition-all"
+                                        className="border-gold-600 text-gold-600 bg-transparent hover:bg-white hover:text-navy-primary hover:border-white font-semibold text-lg px-8 py-6 h-auto rounded-lg transition-all duration-300 hover:scale-105"
                                         onClick={() => window.location.href = '/'}
                                     >
                                         Back to Home
@@ -386,7 +386,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
 
                                     <div>
                                         <Label htmlFor="proof">Upload Proof of Payment</Label>
-                                        <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gold-600 transition-colors cursor-pointer">
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gold-600 transition-colors cursor-pointer"
+                                        >
                                             <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                                             <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
                                             <p className="text-xs text-gray-500 mt-2">PNG, JPG or PDF (max. 5MB)</p>

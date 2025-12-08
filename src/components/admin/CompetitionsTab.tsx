@@ -23,11 +23,7 @@ interface Competition {
   start_date: string;
   status: string;
   end_date: string;
-  badge_text?: string;
-  subtitle?: string;
   image_url?: string;
-  footer_text_1?: string;
-  footer_text_2?: string;
 }
 
 interface CompetitionEntry {
@@ -54,10 +50,7 @@ const CompetitionsTab = () => {
     max_tickets: "",
     start_date: "",
     end_date: "",
-    badge_text: "",
-    subtitle: "",
-    footer_text_1: "Secure & Transparent",
-    footer_text_2: "Verified Entries",
+    end_date: "",
   });
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [selectedCompetition, setSelectedCompetition] = useState<string | null>(null);
@@ -109,10 +102,8 @@ const CompetitionsTab = () => {
       max_tickets: competition.max_tickets ? competition.max_tickets.toString() : "0",
       start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
       end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
-      badge_text: competition.badge_text || "",
-      subtitle: competition.subtitle || "",
-      footer_text_1: competition.footer_text_1 || "Secure & Transparent",
-      footer_text_2: competition.footer_text_2 || "Verified Entries",
+      start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
+      end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
     });
 
     // We can't easily set the file input, so we leave it null. If they upload a new one, we use it. If not, we keep the old one (logic updates image only if new file provided)
@@ -180,16 +171,12 @@ const CompetitionsTab = () => {
       prize: formData.prize,
       second_prize: formData.second_prize,
       third_prize: formData.third_prize,
-      ticket_price: parseFloat(formData.ticket_price),
-      max_tickets: parseInt(formData.max_tickets),
-      start_date: formData.start_date,
-      end_date: formData.end_date,
+      ticket_price: parseFloat(formData.ticket_price) || 0,
+      max_tickets: parseInt(formData.max_tickets) || 0,
+      start_date: new Date(formData.start_date).toISOString(),
+      end_date: new Date(formData.end_date).toISOString(),
       status: "active",
-      badge_text: formData.badge_text,
-      subtitle: formData.subtitle,
       ...(imageUrl && { image_url: imageUrl }), // Only update image if a new one is uploaded
-      footer_text_1: formData.footer_text_1,
-      footer_text_2: formData.footer_text_2,
     };
 
     let error;
@@ -211,9 +198,11 @@ const CompetitionsTab = () => {
     }
 
     if (error) {
+      console.error("Supabase Error:", error);
+      console.log("Submission Data:", submissionData);
       toast({
         title: "Error",
-        description: `Failed to ${editingId ? "update" : "create"} competition`,
+        description: `Failed to ${editingId ? "update" : "create"} competition: ${error.message} ${(error as any).details || ''}`,
         variant: "destructive",
       });
       return;
@@ -235,10 +224,8 @@ const CompetitionsTab = () => {
       max_tickets: "",
       start_date: "",
       end_date: "",
-      badge_text: "",
-      subtitle: "",
-      footer_text_1: "Secure & Transparent",
-      footer_text_2: "Verified Entries",
+      start_date: "",
+      end_date: "",
     });
     setHeroImageFile(null);
     fetchCompetitions();
@@ -334,10 +321,8 @@ const CompetitionsTab = () => {
                     max_tickets: "",
                     start_date: "",
                     end_date: "",
-                    badge_text: "",
-                    subtitle: "",
-                    footer_text_1: "Secure & Transparent",
-                    footer_text_2: "Verified Entries",
+                    start_date: "",
+                    end_date: "",
                   });
                 }}
               >
@@ -365,24 +350,7 @@ const CompetitionsTab = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Badge Text</Label>
-                    <Input
-                      value={formData.badge_text}
-                      onChange={(e) => setFormData({ ...formData, badge_text: e.target.value })}
-                      placeholder="e.g., Limited Time Offer"
-                    />
-                  </div>
-                  <div>
-                    <Label>Subtitle</Label>
-                    <Input
-                      value={formData.subtitle}
-                      onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                      placeholder="e.g., Win a Family Wellness Getaway!"
-                    />
-                  </div>
-                </div>
+
                 <div>
                   <Label>Hero Image {editingId && "(Optional - Leave empty to keep existing)"}</Label>
                   <div className="mt-2 flex items-center gap-4">
@@ -399,22 +367,7 @@ const CompetitionsTab = () => {
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Footer Text 1</Label>
-                    <Input
-                      value={formData.footer_text_1}
-                      onChange={(e) => setFormData({ ...formData, footer_text_1: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Footer Text 2</Label>
-                    <Input
-                      value={formData.footer_text_2}
-                      onChange={(e) => setFormData({ ...formData, footer_text_2: e.target.value })}
-                    />
-                  </div>
-                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label>1st Prize</Label>

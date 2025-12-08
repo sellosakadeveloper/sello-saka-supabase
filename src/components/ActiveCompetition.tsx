@@ -386,7 +386,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
 
                                     <div>
                                         <Label htmlFor="proof">Upload Proof of Payment</Label>
-                                        <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gold-600 transition-colors cursor-pointer">
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gold-600 transition-colors cursor-pointer"
+                                        >
                                             <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                                             <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
                                             <p className="text-xs text-gray-500 mt-2">PNG, JPG or PDF (max. 5MB)</p>

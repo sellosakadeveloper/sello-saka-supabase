@@ -70,60 +70,62 @@ const ActiveTeams = () => {
                     </div>
                 </FadeIn>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="flex flex-wrap justify-center items-stretch gap-8">
                     {teams.map((member, index) => (
-                        <FadeIn key={member.id} direction="up" delay={0.1 * (index + 1)}>
-                            <HoverCard>
-                                <Card
-                                    className="bg-navy-600 border-gold-800 overflow-hidden h-[520px] flex flex-col cursor-pointer"
-                                    onClick={() => { setSelected(member); setOpen(true); }}
-                                >
-                                    <div className="flex justify-center items-center p-8 bg-navy-700">
-                                        <div
-                                            className="relative overflow-hidden"
-                                            style={{
-                                                width: '240px',
-                                                height: '240px',
-                                                borderRadius: '50%',
-                                                border: '3px solid #D4AF37'
-                                            }}
-                                        >
-                                            <img
-                                                src={member.image_url}
-                                                alt={member.name}
-                                                className="w-full h-full"
+                        <div key={member.id} className="w-full sm:w-[calc(50%-1rem)] lg:w-[calc(25%-2rem)] max-w-[320px] flex flex-col">
+                            <FadeIn direction="up" delay={0.1 * (index + 1)}>
+                                <HoverCard>
+                                    <Card
+                                        className="bg-navy-600 border-gold-800 overflow-hidden h-[520px] flex flex-col cursor-pointer"
+                                        onClick={() => { setSelected(member); setOpen(true); }}
+                                    >
+                                        <div className="flex justify-center items-center p-8 bg-navy-700">
+                                            <div
+                                                className="relative overflow-hidden"
                                                 style={{
-                                                    objectFit: 'cover',
-                                                    objectPosition: 'center'
+                                                    width: '240px',
+                                                    height: '240px',
+                                                    borderRadius: '50%',
+                                                    border: '3px solid #D4AF37'
                                                 }}
-                                            />
+                                            >
+                                                <img
+                                                    src={member.image_url || "/placeholder-avatar.jpg"}
+                                                    alt={member.name}
+                                                    className="w-full h-full"
+                                                    style={{
+                                                        objectFit: 'cover',
+                                                        objectPosition: 'center'
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="p-6 flex-1 min-h-0 flex flex-col">
-                                        <h3 className="text-xl font-bold text-white mb-1">{member.name}</h3>
-                                        <p className="text-gold-600 text-sm mb-3">{member.role}</p>
-                                        <div className="relative">
-                                            <p className="text-gray-400 text-sm mb-4 line-clamp-4">
-                                                {member.bio}
-                                            </p>
-                                            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-navy-600 to-transparent" />
+                                        <div className="p-6 flex-1 min-h-0 flex flex-col">
+                                            <h3 className="text-xl font-bold text-white mb-1">{member.name}</h3>
+                                            <p className="text-gold-600 text-sm mb-3">{member.role}</p>
+                                            <div className="relative">
+                                                <p className="text-gray-400 text-sm mb-4 line-clamp-4">
+                                                    {member.bio}
+                                                </p>
+                                                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-navy-600 to-transparent" />
+                                            </div>
+                                            <div className="flex gap-3">
+                                                {member.linkedin_url && (
+                                                    <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-gold-600 hover:text-gold-400" onClick={(e) => e.stopPropagation()}>
+                                                        <Linkedin className="w-5 h-5" />
+                                                    </a>
+                                                )}
+                                                {member.email && (
+                                                    <a href={`mailto:${member.email}`} className="text-gold-600 hover:text-gold-400" onClick={(e) => e.stopPropagation()}>
+                                                        <Mail className="w-5 h-5" />
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex gap-3">
-                                            {member.linkedin_url && (
-                                                <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-gold-600 hover:text-gold-400" onClick={(e) => e.stopPropagation()}>
-                                                    <Linkedin className="w-5 h-5" />
-                                                </a>
-                                            )}
-                                            {member.email && (
-                                                <a href={`mailto:${member.email}`} className="text-gold-600 hover:text-gold-400" onClick={(e) => e.stopPropagation()}>
-                                                    <Mail className="w-5 h-5" />
-                                                </a>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
-                            </HoverCard>
-                        </FadeIn>
+                                    </Card>
+                                </HoverCard>
+                            </FadeIn>
+                        </div>
                     ))}
                 </div>
                 <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSelected(null); }}>

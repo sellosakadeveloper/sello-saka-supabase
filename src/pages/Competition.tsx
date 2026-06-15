@@ -16,6 +16,10 @@ interface CompetitionData {
   entry_fee: number;
   end_date: string;
   hero_image_url?: string | null;
+  badge_text?: string | null;
+  subtitle?: string | null;
+  footer_text_1?: string | null;
+  footer_text_2?: string | null;
 }
 
 const Competition = () => {
@@ -39,12 +43,16 @@ const Competition = () => {
             id: data.id,
             title: data.title,
             description: data.description,
-            prize_first: data.prize, // Map prize to prize_first
-            prize_second: data.second_prize, // Map second_prize to prize_second
-            prize_third: data.third_prize, // Map third_prize to prize_third
-            entry_fee: data.ticket_price, // Map ticket_price to entry_fee
+            prize_first: data.prize,
+            prize_second: data.second_prize,
+            prize_third: data.third_prize,
+            entry_fee: data.ticket_price,
             end_date: data.end_date,
             hero_image_url: data.image_url,
+            badge_text: data.badge_text,
+            subtitle: data.subtitle,
+            footer_text_1: data.footer_text_1,
+            footer_text_2: data.footer_text_2,
           };
           setActiveCompetition(mappedCompetition);
         }

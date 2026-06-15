@@ -8,6 +8,7 @@ import About from "./pages/About";
 import Programs from "./pages/Programs";
 import Impact from "./pages/Impact";
 import Competition from "./pages/Competition";
+import TicketSuccess from "./pages/TicketSuccess";
 import Donate from "./pages/Donate";
 import Contact from "./pages/Contact";
 import Apply from "./pages/Apply";
@@ -15,6 +16,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ResourceHub from "./pages/ResourceHub";
+import { PayFastReturn } from "./pages/PayFastReturn";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +35,8 @@ const App = () => (
           <Route path="/programs" element={<Programs />} />
           <Route path="/impact" element={<Impact />} />
           <Route path="/competition" element={<Competition />} />
+          <Route path="/competition/success" element={<TicketSuccess />} />
+          <Route path="/payfast-return" element={<PayFastReturn />} />
           <Route path="/donate" element={<Donate />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/resources" element={<ResourceHub />} />

@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Upload, CheckCircle2, Trophy, ShieldCheck, Users } from "lucide-react";
+import { Sparkles, CheckCircle2, Trophy, ShieldCheck, Users, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { HoverCard } from "@/components/animations/HoverCard";
+import { useNavigate } from "react-router-dom";
 
 interface ActiveCompetitionProps {
     competition: {
@@ -28,7 +28,7 @@ interface ActiveCompetitionProps {
 }
 
 const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [countdown, setCountdown] = useState({
         days: 0,
@@ -41,7 +41,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         email: "",
         phone: "",
     });
-    const [file, setFile] = useState<File | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState("");
 
     useEffect(() => {
         const calculateTimeLeft = () => {
@@ -74,65 +74,187 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         return () => clearInterval(timer);
     }, [competition.end_date]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+    const verifyAndGenerateTicket = async (reference: string) => {
+        setLoading(true);
+        try {
+            const response = await fetch("/api/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    reference,
+                    name: formData.name,
+                    phone: formData.phone,
+                    competition_id: competition.id,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Navigate to success page with ticket details
+                navigate("/competition/success", {
+                    state: {
+                        ticket_number: data.ticket_number,
+                        reference: data.reference,
+                        participant_name: data.participant_name,
+                        email: data.email,
+                        competition_title: data.competition_title,
+                        prize: data.prize,
+                        draw_date: data.draw_date,
+                    },
+                });
+            } else {
+                toast.error("Verification Failed", {
+                    description: data.error || "Could not verify your payment. Please contact support.",
+                });
+            }
+        } catch (error) {
+            console.error("Verification error:", error);
+            toast.error("Error", {
+                description: "Something went wrong. Please contact support with your payment reference.",
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handlePaystack = (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
+
+        if (!formData.name || !formData.email || !formData.phone) {
+            toast.error("Please fill in all fields");
+            return;
+        }
+
+        const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+
+        if (!publicKey || publicKey === "pk_test_YOUR_PUBLIC_KEY_HERE") {
+            toast.error("Payment not configured", {
+                description: "Paystack is not yet configured. Please contact the administrator.",
+            });
+            return;
+        }
+
+        if (!window.PaystackPop) {
+            toast.error("Payment Error", {
+                description: "Payment system failed to load. Please refresh the page.",
+            });
+            return;
+        }
 
         try {
-            let proofUrl = null;
-
-            if (file) {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-                const filePath = `${fileName}`;
-
-                const { error: uploadError, data } = await supabase.storage
-                    .from('competition-proofs')
-                    .upload(filePath, file);
-
-                if (uploadError) {
-                    console.error("File upload failed:", uploadError);
-                    throw new Error("Failed to upload proof of payment");
-                } else {
-                    proofUrl = data?.path;
-                }
-            }
-
-            const { error } = await supabase
-                .from("competition_entries")
-                .insert([{
-                    competition_id: competition.id,
-                    full_name: formData.name,
-                    email: formData.email,
+            const handler = window.PaystackPop.setup({
+                key: publicKey,
+                email: formData.email,
+                amount: competition.entry_fee * 100, // Convert ZAR to kobo (cents)
+                currency: "ZAR",
+                metadata: {
+                    name: formData.name,
                     phone: formData.phone,
-                    proof_of_payment_url: proofUrl,
-                    status: "pending"
-                }]);
-
-            if (error) throw error;
-
-            toast.success("Entry Submitted!", {
-                description: "Your competition entry has been received. Good luck!",
+                    competition_id: competition.id,
+                    custom_fields: [
+                        {
+                            display_name: "Full Name",
+                            variable_name: "full_name",
+                            value: formData.name,
+                        },
+                        {
+                            display_name: "Phone",
+                            variable_name: "phone",
+                            value: formData.phone,
+                        },
+                    ],
+                },
+                onSuccess: (response) => {
+                    toast.success("Payment Successful!", {
+                        description: "Generating your ticket...",
+                    });
+                    verifyAndGenerateTicket(response.reference);
+                },
+                onClose: () => {
+                    toast.info("Payment Cancelled", {
+                        description: "You can try again when you're ready.",
+                    });
+                },
             });
 
-            setFormData({ name: "", email: "", phone: "" });
-            setFile(null);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
+            handler.openIframe();
+        } catch (error) {
+            console.error("Paystack error:", error);
+            toast.error("Payment Error", {
+                description: "Failed to initialize payment. Please try again.",
+            });
+        }
+    };
+
+    const handlePayFast = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('/.netlify/functions/payfast-signature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: competition.entry_fee.toString(),
+                    item_name: `Ticket Selection for ${competition.title}`,
+                    name: formData.name,
+                    email: formData.email,
+                    custom_str1: competition.id,
+                    custom_str2: formData.email,
+                    custom_str3: formData.name,
+                    custom_str4: formData.phone,
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to initialize PayFast payment: ${response.statusText}`);
             }
-        } catch (error: any) {
-            toast.error("Error", {
-                description: "Failed to submit entry. Please try again.",
+
+            const pfData = await response.json();
+            const { signature, ...restData } = pfData;
+            const allData = { ...restData, signature };
+
+            // Create and submit form
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "https://sandbox.payfast.co.za/eng/process";
+            form.style.display = "none";
+
+            for (const key in allData) {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = key;
+                input.value = allData[key];
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+        } catch (error) {
+            console.error("PayFast Error:", error);
+            toast.error("Payment Error", {
+                description: "Failed to initialize PayFast payment. Please try again.",
             });
-            console.error("Error submitting entry:", error);
-        } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePaymentSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!formData.name || !formData.email || !formData.phone) {
+            toast.error("Please fill in all fields");
+            return;
+        }
+
+        if (!paymentMethod) {
+            toast.error("Please select a payment method");
+            return;
+        }
+
+        if (paymentMethod === "paystack") {
+            handlePaystack(e);
+        } else if (paymentMethod === "payfast") {
+            handlePayFast();
         }
     };
 
@@ -259,10 +381,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                         <div className="w-20 h-1 bg-gold-600 mx-auto mb-12" />
                     </FadeIn>
 
-                    <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                        <FadeIn direction="up" delay={0.2} className="h-full">
+                    <div className={`flex flex-wrap gap-8 max-w-6xl mx-auto ${(competition.prize_second || competition.prize_third) ? 'justify-start' : 'justify-center'}`}>
+                        <FadeIn direction="up" delay={0.2} className="w-full md:w-[calc(33.333%-1.4rem)] h-full flex-shrink-0">
                             <HoverCard className="h-full">
-                                <Card className="border-2 border-gold-600 p-8 text-center hover:shadow-xl transition-shadow md:col-start-1 md:col-end-2 h-full">
+                                <Card className="border-2 border-gold-600 p-8 text-center hover:shadow-xl transition-shadow h-full">
                                     <div className="w-16 h-16 rounded-full bg-gold-600 flex items-center justify-center mx-auto mb-4">
                                         <Trophy className="w-8 h-8 text-navy-primary" />
                                     </div>
@@ -273,7 +395,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                         </FadeIn>
 
                         {competition.prize_second && (
-                            <FadeIn direction="up" delay={0.4} className="h-full">
+                            <FadeIn direction="up" delay={0.4} className="w-full md:w-[calc(33.333%-1.4rem)] h-full flex-shrink-0">
                                 <HoverCard className="h-full">
                                     <Card className="border-2 border-navy-600 p-8 text-center hover:shadow-xl transition-shadow h-full">
                                         <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center mx-auto mb-4">
@@ -287,7 +409,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                         )}
 
                         {competition.prize_third && (
-                            <FadeIn direction="up" delay={0.6} className="h-full">
+                            <FadeIn direction="up" delay={0.6} className="w-full md:w-[calc(33.333%-1.4rem)] h-full flex-shrink-0">
                                 <HoverCard className="h-full">
                                     <Card className="border-2 border-navy-600 p-8 text-center hover:shadow-xl transition-shadow h-full">
                                         <div className="w-16 h-16 rounded-full bg-navy-600 flex items-center justify-center mx-auto mb-4">
@@ -313,10 +435,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
 
                     <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
                         {[
-                            { step: 1, title: "Make a Donation", desc: `Entry costs R${competition.entry_fee}. Your contribution supports our programs.` },
-                            { step: 2, title: "Upload Proof", desc: "Submit your payment confirmation via the form below." },
-                            { step: 3, title: "Get Your Ticket", desc: "Receive your unique ticket number via email." },
-                            { step: 4, title: "Wait for Results", desc: "Winners announced after the countdown ends!" }
+                            { step: 1, title: "Fill in Your Details", desc: "Enter your name, email, and phone number in the form below." },
+                            { step: 2, title: "Pay Securely", desc: `Entry costs R${competition.entry_fee}. Pay securely via Paystack (card, EFT, or bank transfer).` },
+                            { step: 3, title: "Receive Your Ticket", desc: "Your unique digital ticket will be emailed to you instantly after payment." },
+                            { step: 4, title: "Wait for Results", desc: "Winners announced after the countdown ends via live random draw!" }
                         ].map((item, index) => (
                             <FadeIn key={item.step} direction="up" delay={0.1 * (index + 1)}>
                                 <div className="text-center">
@@ -345,7 +467,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
 
                         <FadeIn direction="up" delay={0.2}>
                             <Card className="border-2 border-navy-600 p-8" id="entry-form">
-                                <form onSubmit={handleSubmit} className="space-y-6">
+                                <form onSubmit={handlePaymentSubmit} className="space-y-6">
                                     <div>
                                         <Label htmlFor="name">Full Name</Label>
                                         <Input
@@ -355,6 +477,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                             placeholder="Your name"
                                             required
                                             className="mt-2"
+                                            disabled={loading}
                                         />
                                     </div>
 
@@ -368,6 +491,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                             placeholder="your@email.com"
                                             required
                                             className="mt-2"
+                                            disabled={loading}
                                         />
                                     </div>
 
@@ -381,54 +505,69 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                             placeholder="+27 12 345 6789"
                                             required
                                             className="mt-2"
+                                            disabled={loading}
                                         />
                                     </div>
 
-                                    <div>
-                                        <Label htmlFor="proof">Upload Proof of Payment</Label>
-                                        <div
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gold-600 transition-colors cursor-pointer"
-                                        >
-                                            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                                            <p className="text-xs text-gray-500 mt-2">PNG, JPG or PDF (max. 5MB)</p>
-                                            <input
-                                                type="file"
-                                                id="proof"
-                                                className="hidden"
-                                                accept="image/*,.pdf"
-                                                ref={fileInputRef}
-                                                onChange={handleFileChange}
-                                            />
-                                        </div>
-                                        {file && (
-                                            <p className="text-sm text-green-600 mt-2 flex items-center gap-2">
-                                                <CheckCircle2 className="w-4 h-4" />
-                                                {file.name}
-                                            </p>
-                                        )}
-                                    </div>
-
+                                    {/* Entry Fee Display */}
                                     <div className="bg-beige-200 border-l-4 border-gold-600 p-4">
                                         <div className="flex gap-3">
-                                            <CheckCircle2 className="w-5 h-5 text-gold-600 flex-shrink-0 mt-0.5" />
+                                            <CreditCard className="w-5 h-5 text-gold-600 flex-shrink-0 mt-0.5" />
                                             <div className="text-sm text-gray-700">
-                                                <p className="font-semibold mb-1">Payment Details:</p>
-                                                <p>Bank: FNB | Account: Sello Saka Foundation</p>
-                                                <p>Account Number: 62345678910</p>
-                                                <p>Reference: COMP2025</p>
+                                                <p className="font-semibold mb-1">Entry Fee: R{competition.entry_fee.toFixed(2)}</p>
+                                                <p>Secure payment powered by Paystack or PayFast. Supports card, EFT, bank transfer, and more.</p>
+                                                <p className="mt-1 text-xs text-gray-500">Your donation supports our childhood cancer survivor programs.</p>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Payment Method Selection */}
+                                    <div>
+                                        <Label className="mt-4 block mb-2 font-semibold">Select Payment Method</Label>
+                                        <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-6">
+                                            <Button
+                                                type="button"
+                                                variant={paymentMethod === "payfast" ? "default" : "outline"}
+                                                className={`w-full h-20 flex flex-col gap-2 ${paymentMethod === "payfast" ? "bg-gold-600 text-navy-primary" : ""}`}
+                                                onClick={() => setPaymentMethod("payfast")}
+                                            >
+                                                <CreditCard className="w-6 h-6" />
+                                                <span className="text-xs">PayFast</span>
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant={paymentMethod === "paystack" ? "default" : "outline"}
+                                                className={`w-full h-20 flex flex-col gap-2 ${paymentMethod === "paystack" ? "bg-gold-600 text-navy-primary" : ""}`}
+                                                onClick={() => setPaymentMethod("paystack")}
+                                            >
+                                                <CreditCard className="w-6 h-6" />
+                                                <span className="text-xs">Paystack</span>
+                                            </Button>
                                         </div>
                                     </div>
 
                                     <Button
                                         type="submit"
-                                        className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14"
-                                        disabled={loading}
+                                        className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14 font-bold"
+                                        disabled={loading || !paymentMethod}
                                     >
-                                        {loading ? "Submitting..." : "Submit Entry"}
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                Generating Your Ticket...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CreditCard className="w-5 h-5 mr-2" />
+                                                Pay R{competition.entry_fee.toFixed(2)} & Get Your Ticket
+                                            </>
+                                        )}
                                     </Button>
+
+                                    <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+                                        <ShieldCheck className="w-4 h-4" />
+                                        <span>256-bit SSL encrypted payment</span>
+                                    </div>
                                 </form>
                             </Card>
                         </FadeIn>

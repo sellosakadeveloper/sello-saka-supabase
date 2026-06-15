@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f3f4f6;
+  /* light gray background behind the page */
+}
+
+/* A4 Page Simulation (Landscape) */
+.a4-page-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.a4-page {
+  /* A4 Landscape Dimensions */
+  width: 297mm;
+  min-height: 210mm;
+  background-color: white;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  padding: 20mm;
+  /* matching the layout.md pdf_options margins */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* Print friendly setup */
+  position: relative;
+  page-break-after: always;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  body {
+    background-color: white;
+  }
+
+  .a4-page-container {
+    display: block;
+    padding: 0;
+  }
+
+  .a4-page {
+    box-shadow: none;
+    margin: 0;
+    padding: 20mm;
+    width: 297mm;
+    min-height: 210mm;
+  }
+}

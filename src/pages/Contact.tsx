@@ -8,11 +8,13 @@ import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 const Contact = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const submitContactMessage = useMutation(api.forms.submitContactMessage);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,11 +28,7 @@ const Contact = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("contact_messages")
-        .insert([formData]);
-
-      if (error) throw error;
+      await submitContactMessage(formData);
 
       toast({
         title: "Message Sent!",

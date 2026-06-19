@@ -17,7 +17,7 @@ This makes `src/App.tsx` the first place to check when adding or moving a route.
 - `src/components/ui/` owns generic building blocks and wrappers.
 - `src/components/admin/` owns admin dashboard tab content.
 
-The codebase currently favors page-owned orchestration with component extraction where reuse is clear. For example, the resource listing flow is orchestrated in `src/pages/ResourceHub.tsx`, while the item presentation lives in `src/components/ResourceCard.tsx`.
+The codebase currently favors page-owned orchestration with component extraction where reuse is clear. For example, the resource listing flow is orchestrated in `src/pages/ResourceHub.tsx`, while the item presentation lives in `src/components/ResourceCard.tsx`. Migrated admin and payment screens follow the same pattern: page or tab orchestration up top, Convex-backed data access at the feature boundary.
 
 ## Shared Application Shell
 

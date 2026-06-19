@@ -1,14 +1,15 @@
 import { useState } from "react";
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Heart, CreditCard, Smartphone, CheckCircle2, Wallet } from "lucide-react";
+import { Heart, Smartphone, CheckCircle2, Wallet } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 const Donate = () => {
   const { toast } = useToast();
@@ -20,8 +21,36 @@ const Donate = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    phone: ""
+    phone: "",
   });
+
+  const createPayment = useAction(api.paymentsNode.createPayment);
+  const verifyPayment = useAction(api.paymentsNode.verifyPayment);
+
+  const resetForm = () => {
+    setFormData({ name: "", email: "", phone: "" });
+    setSelectedAmount("");
+    setCustomAmount("");
+    setPaymentMethod("");
+  };
+
+  const submitHostedPaymentForm = (processUrl: string, formFields: Record<string, string>) => {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = processUrl;
+    form.style.display = "none";
+
+    Object.entries(formFields).forEach(([key, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,154 +79,76 @@ const Donate = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from("donations")
-        .insert([{
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          amount: parseFloat(amount),
-          donation_type: donationType,
-          payment_method: paymentMethod,
-          status: "pending" // Default status
-        }]);
-
-      if (error) throw error;
+      const initData = await createPayment({
+        purpose: "donation",
+        provider: paymentMethod as "payfast" | "paystack",
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        amount: parseFloat(amount),
+        donation_type: donationType,
+        site_url: window.location.origin,
+      });
 
       if (paymentMethod === "payfast") {
-        try {
-          const response = await fetch('/.netlify/functions/payfast-signature', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              amount: amount,
-              item_name: donationType === 'monthly' ? 'Monthly Donation' : 'Donation',
-              name: formData.name,
-              email: formData.email
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to initialize PayFast payment: ${response.statusText}`);
-          }
-
-          const pfData = await response.json();
-
-          const { signature, data } = pfData;
-          const allData = { ...data, signature };
-
-          // Create and submit form
-          const form = document.createElement("form");
-          form.method = "POST";
-          form.action = "https://sandbox.payfast.co.za/eng/process";
-          form.style.display = "none";
-
-          for (const key in allData) {
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = key;
-            input.value = allData[key];
-            form.appendChild(input);
-          }
-
-          document.body.appendChild(form);
-          form.submit();
-          return;
-        } catch (pfError) {
-          console.error("PayFast Error:", pfError);
-          toast({
-            title: "Payment Error",
-            description: "Failed to initialize PayFast payment. Please try again.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
+        submitHostedPaymentForm(initData.process_url, initData.form_fields);
+        return;
       }
 
-      if (paymentMethod === "paystack") {
-        const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+      const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
-        if (!publicKey || publicKey === "pk_test_YOUR_PUBLIC_KEY_HERE" || !window.PaystackPop) {
-          toast({
-            title: "Payment Error",
-            description: "Paystack is not yet configured. Please try PayFast or contact support.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-
-        try {
-          const handler = window.PaystackPop.setup({
-            key: publicKey,
-            email: formData.email,
-            amount: parseFloat(amount) * 100, // Convert ZAR to kobo
-            currency: "ZAR",
-            metadata: {
-              name: formData.name,
-              donation_type: donationType,
-              custom_fields: [
-                {
-                  display_name: "Donor Name",
-                  variable_name: "donor_name",
-                  value: formData.name,
-                },
-              ],
-            },
-            onSuccess: () => {
-              toast({
-                title: "Thank You! 🎉",
-                description: "Your donation has been received successfully.",
-              });
-              setFormData({ name: "", email: "", phone: "" });
-              setSelectedAmount("");
-              setCustomAmount("");
-              setPaymentMethod("");
-              setLoading(false);
-            },
-            onClose: () => {
-              toast({
-                title: "Payment Cancelled",
-                description: "You can try again when you're ready.",
-              });
-              setLoading(false);
-            },
-          });
-
-          handler.openIframe();
-          return;
-        } catch (paystackError) {
-          console.error("Paystack Error:", paystackError);
-          toast({
-            title: "Payment Error",
-            description: "Failed to initialize Paystack payment. Please try again.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
+      if (!publicKey || publicKey === "pk_test_YOUR_PUBLIC_KEY_HERE" || !window.PaystackPop) {
+        throw new Error("Paystack is not yet configured. Please try PayFast or contact support.");
       }
 
-      toast({
-        title: "Thank You!",
-        description: "Your donation details have been recorded.",
+      const handler = window.PaystackPop.setup({
+        key: publicKey,
+        email: initData.email,
+        amount: Math.round(Number(initData.amount) * 100),
+        currency: "ZAR",
+        metadata: {
+          ...initData.metadata,
+          donation_type: donationType,
+        },
+        onSuccess: async (response: { reference: string }) => {
+          try {
+            await verifyPayment({
+              reference: response.reference,
+              payment_reference: initData.payment_reference,
+            });
+
+            toast({
+              title: "Thank You!",
+              description: "Your donation has been received successfully.",
+            });
+            resetForm();
+          } catch (error: any) {
+            toast({
+              title: "Payment Verification Error",
+              description: error.message || "We could not verify your donation automatically.",
+              variant: "destructive",
+            });
+          } finally {
+            setLoading(false);
+          }
+        },
+        onClose: () => {
+          toast({
+            title: "Payment Cancelled",
+            description: "You can try again when you're ready.",
+          });
+          setLoading(false);
+        },
       });
-      // Reset form
-      setFormData({ name: "", email: "", phone: "" });
-      setSelectedAmount("");
-      setCustomAmount("");
-      setPaymentMethod("");
+
+      handler.openIframe();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to process donation details. Please try again.",
+        description: error.message || "Failed to process donation details. Please try again.",
         variant: "destructive",
       });
-      console.error("Error processing donation:", error);
-    } finally {
+      console.error("Donation payment error:", error);
       setLoading(false);
     }
   };
@@ -208,7 +159,6 @@ const Donate = () => {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero */}
       <section className="bg-navy-primary py-20">
         <div className="container mx-auto px-4 text-center">
           <div className="w-20 h-20 rounded-full bg-gold-600/20 border-2 border-gold-600 flex items-center justify-center mx-auto mb-6">
@@ -222,7 +172,6 @@ const Donate = () => {
         </div>
       </section>
 
-      {/* Impact Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-navy-primary mb-8 text-center">Your Impact</h2>
@@ -243,13 +192,11 @@ const Donate = () => {
         </div>
       </section>
 
-      {/* Donation Form */}
       <section className="py-20 bg-beige-200">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <Card className="border-2 border-navy-600 p-8">
               <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Donation Type */}
                 <div>
                   <Label className="text-lg font-semibold mb-4 block">Donation Type</Label>
                   <RadioGroup value={donationType} onValueChange={setDonationType} className="grid grid-cols-2 gap-4">
@@ -274,22 +221,21 @@ const Donate = () => {
                   </RadioGroup>
                 </div>
 
-                {/* Amount Selection */}
                 <div>
                   <Label className="text-lg font-semibold mb-4 block">Select Amount (ZAR)</Label>
                   <div className="grid grid-cols-3 gap-3 mb-4">
-                    {amounts.map((amount) => (
+                    {amounts.map((amountOption) => (
                       <Button
-                        key={amount}
+                        key={amountOption}
                         type="button"
-                        variant={selectedAmount === amount ? "default" : "outline"}
-                        className={selectedAmount === amount ? "bg-gold-600 hover:bg-gold-400 text-navy-primary" : "border-navy-600"}
+                        variant={selectedAmount === amountOption ? "default" : "outline"}
+                        className={selectedAmount === amountOption ? "bg-gold-600 hover:bg-gold-400 text-navy-primary" : "border-navy-600"}
                         onClick={() => {
-                          setSelectedAmount(amount);
+                          setSelectedAmount(amountOption);
                           setCustomAmount("");
                         }}
                       >
-                        R{amount}
+                        R{amountOption}
                       </Button>
                     ))}
                   </div>
@@ -304,7 +250,6 @@ const Donate = () => {
                   />
                 </div>
 
-                {/* Donor Information */}
                 <div className="space-y-4">
                   <Label className="text-lg font-semibold mb-4 block">Your Information</Label>
 
@@ -346,7 +291,6 @@ const Donate = () => {
                   </div>
                 </div>
 
-                {/* Payment Methods */}
                 <div>
                   <Label className="text-lg font-semibold mb-4 block">Payment Method</Label>
                   <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
@@ -370,7 +314,7 @@ const Donate = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-gray-600 mt-3 text-center">
-                    💳 Supports Card, EFT, bank transfer, and other payment methods
+                    Supports Card, EFT, bank transfer, and other payment methods
                   </p>
                 </div>
 
@@ -398,7 +342,6 @@ const Donate = () => {
         </div>
       </section>
 
-      {/* Where Funds Go */}
       <section className="py-20 bg-navy-primary">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl font-bold text-white mb-12 text-center">Where Your Donation Goes</h2>
@@ -412,7 +355,7 @@ const Donate = () => {
                     <span className="text-gold-600 font-bold">75%</span>
                   </div>
                   <div className="w-full bg-navy-primary rounded-full h-3">
-                    <div className="bg-gold-600 h-3 rounded-full" style={{ width: '75%' }} />
+                    <div className="bg-gold-600 h-3 rounded-full" style={{ width: "75%" }} />
                   </div>
                 </div>
 
@@ -422,7 +365,7 @@ const Donate = () => {
                     <span className="text-gold-600 font-bold">15%</span>
                   </div>
                   <div className="w-full bg-navy-primary rounded-full h-3">
-                    <div className="bg-gold-600 h-3 rounded-full" style={{ width: '15%' }} />
+                    <div className="bg-gold-600 h-3 rounded-full" style={{ width: "15%" }} />
                   </div>
                 </div>
 
@@ -432,7 +375,7 @@ const Donate = () => {
                     <span className="text-gold-600 font-bold">10%</span>
                   </div>
                   <div className="w-full bg-navy-primary rounded-full h-3">
-                    <div className="bg-gold-600 h-3 rounded-full" style={{ width: '10%' }} />
+                    <div className="bg-gold-600 h-3 rounded-full" style={{ width: "10%" }} />
                   </div>
                 </div>
               </div>

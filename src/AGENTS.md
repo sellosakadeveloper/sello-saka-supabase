@@ -14,7 +14,7 @@ This file applies to `src/` except where a deeper `AGENTS.md` overrides it.
 - `pages/` owns route-level screens.
 - `components/` owns shared and feature-supporting components.
 - `hooks/` owns reusable client hooks.
-- `integrations/` owns external service clients and generated integration types.
+- `integrations/` owns external service clients and generated integration types, including both `convex/` and `supabase/` during the migration.
 - `assets/` owns source-imported images and brand assets.
 
 ## Placement Rules
@@ -23,6 +23,7 @@ This file applies to `src/` except where a deeper `AGENTS.md` overrides it.
 - Shared presentation belongs in `components`, not `pages`.
 - Integration setup belongs in `integrations`, not scattered across unrelated files.
 - Keep source-imported assets under `src/assets`; use `public/` only when a stable public URL is needed.
+- For migrated features, prefer Convex client and query/mutation wrappers. Keep Supabase wrappers only where the feature still depends on the legacy admin auth gate.
 
 ## References
 

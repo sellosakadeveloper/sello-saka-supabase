@@ -259,6 +259,7 @@ export async function processAndEmailTicket({
     email,
     paymentMethod,
     paymentReference,
+    entryId,
 }: {
     supabase: ReturnType<typeof createClient>;
     RESEND_API_KEY: string | undefined;
@@ -268,6 +269,7 @@ export async function processAndEmailTicket({
     email: string;
     paymentMethod: string;
     paymentReference: string;
+    entryId?: string;
 }): Promise<{
     success: boolean;
     ticketNumber?: string;
@@ -278,28 +280,37 @@ export async function processAndEmailTicket({
         const ticketNumber = await generateTicketNumber(supabase);
         const purchaseRef = paymentReference || generateReference();
 
-        // Insert competition entry
-        const { data: entry, error: insertError } = await supabase
-            .from("competition_entries")
-            .insert([
-                {
-                    competition_id: competition.id,
-                    name: participantName,
-                    email: email,
-                    phone: participantPhone,
-                    ticket_number: ticketNumber,
-                    payment_method: paymentMethod,
-                    payment_reference: purchaseRef,
-                    payment_status: "success",
-                    status: "confirmed",
-                },
-            ])
-            .select()
-            .single();
+        const entryPayload = {
+            competition_id: competition.id,
+            name: participantName,
+            full_name: participantName,
+            email: email,
+            phone: participantPhone,
+            ticket_number: ticketNumber,
+            payment_method: paymentMethod,
+            payment_reference: purchaseRef,
+            payment_status: "completed",
+            status: "confirmed",
+        };
 
-        if (insertError) {
-            console.error("Insert error:", insertError);
-            return { success: false, error: insertError.message };
+        const entryMutation = entryId
+            ? supabase
+                .from("competition_entries")
+                .update(entryPayload)
+                .eq("id", entryId)
+                .select()
+                .single()
+            : supabase
+                .from("competition_entries")
+                .insert([entryPayload])
+                .select()
+                .single();
+
+        const { data: entry, error: entryError } = await entryMutation;
+
+        if (entryError) {
+            console.error("Entry mutation error:", entryError);
+            return { success: false, error: entryError.message };
         }
 
         // Format dates for ticket

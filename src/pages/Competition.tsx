@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
 import ActiveCompetition from "@/components/ActiveCompetition";
 import { Loader2 } from "lucide-react";
 import { FadeIn } from "@/components/animations/FadeIn";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface CompetitionData {
   id: string;
@@ -23,54 +23,13 @@ interface CompetitionData {
 }
 
 const Competition = () => {
-  const [activeCompetition, setActiveCompetition] = useState<CompetitionData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchActiveCompetition = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("competitions")
-          .select("*")
-          .eq("status", "active")
-          .single();
-
-        if (error) {
-          console.error("Error fetching active competition:", error);
-        } else {
-          // Map the database fields to the component's expected format
-          const mappedCompetition: CompetitionData = {
-            id: data.id,
-            title: data.title,
-            description: data.description,
-            prize_first: data.prize,
-            prize_second: data.second_prize,
-            prize_third: data.third_prize,
-            entry_fee: data.ticket_price,
-            end_date: data.end_date,
-            hero_image_url: data.image_url,
-            badge_text: data.badge_text,
-            subtitle: data.subtitle,
-            footer_text_1: data.footer_text_1,
-            footer_text_2: data.footer_text_2,
-          };
-          setActiveCompetition(mappedCompetition);
-        }
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchActiveCompetition();
-  }, []);
+  const activeCompetition = useQuery(api.public.getActiveCompetition);
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
-      {loading ? (
+      {activeCompetition === undefined ? (
         <div className="flex justify-center items-center min-h-[60vh]">
           <Loader2 className="w-8 h-8 animate-spin text-gold-600" />
         </div>

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Quote } from "lucide-react";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { HoverCard } from "@/components/animations/HoverCard";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface ImpactStory {
     id: string;
@@ -22,35 +22,10 @@ interface ActiveImpactStoriesProps {
 }
 
 const ActiveImpactStories = ({ variant = "list", limit }: ActiveImpactStoriesProps) => {
-    const [stories, setStories] = useState<ImpactStory[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryArgs = limit === undefined ? {} : { limit };
+    const stories = useQuery(api.public.listActiveImpactStories, queryArgs);
 
-    useEffect(() => {
-        fetchStories();
-    }, []);
-
-    const fetchStories = async () => {
-        let query = supabase
-            .from("impact_stories")
-            .select("*")
-            .eq("is_active", true)
-            .order("created_at", { ascending: false });
-
-        if (limit) {
-            query = query.limit(limit);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-            console.error("Error fetching stories:", error);
-        } else {
-            setStories(data || []);
-        }
-        setLoading(false);
-    };
-
-    if (loading) {
+    if (stories === undefined) {
         return <div className="text-center py-20">Loading stories...</div>;
     }
 

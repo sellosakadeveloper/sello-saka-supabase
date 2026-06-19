@@ -37,7 +37,7 @@ const handler: Handler = async (event: HandlerEvent) => {
         const payload = JSON.parse(event.body || "{}");
 
         if (payload.event === "charge.success") {
-            const { reference } = payload.data;
+            const { reference, metadata } = payload.data;
 
             // Call verify-payment to handle the rest (idempotent)
             // The verify-payment function handles deduplication
@@ -49,7 +49,7 @@ const handler: Handler = async (event: HandlerEvent) => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         reference,
-                        // Metadata is already stored in Paystack transaction
+                        payment_reference: metadata?.payment_reference,
                     }),
                 });
             }

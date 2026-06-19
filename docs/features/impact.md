@@ -12,7 +12,7 @@ The impact area communicates outcomes, stories, and foundation impact-related co
 
 ## Architectural Notes
 
-This feature spans public presentation and admin maintenance. Public display stays in page and shared components, while content management belongs in the admin subtree. That split is useful to preserve because it keeps editorial administration separate from the public-facing page.
+This feature spans public presentation and admin maintenance. Public display now uses a Convex-backed shared component, and the admin maintenance tab also uses Convex for content management and image uploads.
 
 ## Related Agent Docs
 

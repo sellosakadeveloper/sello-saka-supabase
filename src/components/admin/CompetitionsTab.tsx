@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { uploadFileToConvex } from "@/integrations/convex/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,21 +11,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Upload, X } from "lucide-react";
+import { Upload } from "lucide-react";
 
 interface Competition {
   id: string;
   title: string;
   description: string;
   prize: string;
-  second_prize?: string;
-  third_prize?: string;
+  second_prize?: string | null;
+  third_prize?: string | null;
   ticket_price: number;
   max_tickets?: number | null;
   start_date: string;
   status: string;
   end_date: string;
-  image_url?: string;
+  image_url?: string | null;
+  hero_image_storage_id?: string | null;
 }
 
 interface CompetitionEntry {
@@ -31,14 +34,13 @@ interface CompetitionEntry {
   name: string;
   email: string;
   phone: string;
-  ticket_number: string;
+  ticket_number: string | null;
   proof_of_payment_url: string | null;
   status: string;
-  created_at: string;
+  created_at: string | null;
 }
 
 const CompetitionsTab = () => {
-  const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -50,169 +52,29 @@ const CompetitionsTab = () => {
     max_tickets: "",
     start_date: "",
     end_date: "",
-    end_date: "",
   });
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [heroImageStorageId, setHeroImageStorageId] = useState<string>("");
   const [selectedCompetition, setSelectedCompetition] = useState<string | null>(null);
-  const [entries, setEntries] = useState<CompetitionEntry[]>([]);
   const [showEntries, setShowEntries] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchCompetitions();
-  }, []);
+  const competitions = useQuery(api.admin.listCompetitions) as Competition[] | undefined;
+  const entries = useQuery(
+    api.admin.listCompetitionEntriesByCompetition,
+    selectedCompetition ? { competitionId: selectedCompetition as never } : "skip",
+  ) as CompetitionEntry[] | undefined;
 
-  const fetchCompetitions = async () => {
-    const { data, error } = await supabase
-      .from("competitions")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const createCompetition = useMutation(api.admin.createCompetition);
+  const updateCompetition = useMutation(api.admin.updateCompetition);
+  const deleteCompetition = useMutation(api.admin.deleteCompetition);
+  const setCompetitionStatus = useMutation(api.admin.setCompetitionStatus);
+  const updateEntryStatus = useMutation(api.admin.updateCompetitionEntryStatus);
+  const generateUploadUrl = useMutation(api.uploads.generateUploadUrl);
+  const getStorageUrl = useMutation(api.uploads.getStorageUrl);
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch competitions",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCompetitions(data || []);
-  };
-
-  const handleHeroImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setHeroImageFile(e.target.files[0]);
-    }
-  };
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  // ... (keeping other existing state variables)
-
-  const handleEdit = (competition: Competition) => {
-    setEditingId(competition.id);
-    setFormData({
-      title: competition.title,
-      description: competition.description || "",
-      prize: competition.prize,
-      second_prize: competition.second_prize || "",
-      third_prize: competition.third_prize || "",
-      ticket_price: competition.ticket_price.toString(),
-      max_tickets: competition.max_tickets ? competition.max_tickets.toString() : "0",
-      start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
-      end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
-      start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
-      end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
-    });
-
-    // We can't easily set the file input, so we leave it null. If they upload a new one, we use it. If not, we keep the old one (logic updates image only if new file provided)
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this competition?")) return;
-
-    const { error } = await supabase
-      .from("competitions")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete competition",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "Competition deleted successfully",
-    });
-    fetchCompetitions();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    let imageUrl = null;
-
-    if (heroImageFile) {
-      const fileExt = heroImageFile.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError, data } = await supabase.storage
-        .from('competitions')
-        .upload(filePath, heroImageFile);
-
-      if (uploadError) {
-        console.error("Error uploading image:", uploadError);
-        toast({
-          title: "Error",
-          description: "Failed to upload hero image",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('competitions')
-        .getPublicUrl(filePath);
-
-      imageUrl = publicUrl;
-    }
-
-    const submissionData = {
-      title: formData.title,
-      description: formData.description,
-      prize: formData.prize,
-      second_prize: formData.second_prize,
-      third_prize: formData.third_prize,
-      ticket_price: parseFloat(formData.ticket_price) || 0,
-      max_tickets: parseInt(formData.max_tickets) || 0,
-      start_date: new Date(formData.start_date).toISOString(),
-      end_date: new Date(formData.end_date).toISOString(),
-      status: "active",
-      ...(imageUrl && { image_url: imageUrl }), // Only update image if a new one is uploaded
-    };
-
-    let error;
-
-    if (editingId) {
-      const { error: updateError } = await supabase
-        .from("competitions")
-        .update(submissionData)
-        .eq("id", editingId);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase
-        .from("competitions")
-        .insert({
-          ...submissionData,
-          image_url: imageUrl // For insert, strictly use the new image url (or null)
-        });
-      error = insertError;
-    }
-
-    if (error) {
-      console.error("Supabase Error:", error);
-      console.log("Submission Data:", submissionData);
-      toast({
-        title: "Error",
-        description: `Failed to ${editingId ? "update" : "create"} competition: ${error.message} ${(error as any).details || ''}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: `Competition ${editingId ? "updated" : "created"} successfully`,
-    });
-    setShowForm(false);
+  const resetForm = () => {
     setEditingId(null);
     setFormData({
       title: "",
@@ -224,106 +86,185 @@ const CompetitionsTab = () => {
       max_tickets: "",
       start_date: "",
       end_date: "",
-      start_date: "",
-      end_date: "",
     });
     setHeroImageFile(null);
-    fetchCompetitions();
+    setHeroImageStorageId("");
+  };
+
+  const handleHeroImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setHeroImageFile(e.target.files[0]);
+    }
+  };
+
+  const handleEdit = (competition: Competition) => {
+    setEditingId(competition.id);
+    setFormData({
+      title: competition.title,
+      description: competition.description || "",
+      prize: competition.prize || "",
+      second_prize: competition.second_prize || "",
+      third_prize: competition.third_prize || "",
+      ticket_price: competition.ticket_price.toString(),
+      max_tickets: competition.max_tickets ? competition.max_tickets.toString() : "",
+      start_date: competition.start_date ? new Date(competition.start_date).toISOString().slice(0, 16) : "",
+      end_date: competition.end_date ? new Date(competition.end_date).toISOString().slice(0, 16) : "",
+    });
+    setHeroImageStorageId(competition.hero_image_storage_id || "");
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this competition?")) return;
+
+    try {
+      await deleteCompetition({ id: id as never });
+      toast({
+        title: "Success",
+        description: "Competition deleted successfully",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete competition",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let imageUrl: string | undefined;
+    let uploadedStorageId = heroImageStorageId;
+
+    if (heroImageFile) {
+      try {
+        const uploaded = await uploadFileToConvex({
+          file: heroImageFile,
+          generateUploadUrl,
+          getStorageUrl,
+        });
+        imageUrl = uploaded.url;
+        uploadedStorageId = uploaded.storageId;
+        setHeroImageStorageId(uploaded.storageId);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to upload hero image",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        prize: formData.prize,
+        second_prize: formData.second_prize || undefined,
+        third_prize: formData.third_prize || undefined,
+        ticket_price: parseFloat(formData.ticket_price) || 0,
+        max_tickets: formData.max_tickets ? parseInt(formData.max_tickets, 10) : undefined,
+        start_date: new Date(formData.start_date).toISOString(),
+        end_date: new Date(formData.end_date).toISOString(),
+        image_url: imageUrl,
+        hero_image_storage_id: uploadedStorageId || undefined,
+        image_storage_id: uploadedStorageId || undefined,
+      };
+
+      if (editingId) {
+        await updateCompetition({
+          id: editingId as never,
+          ...payload,
+          status: "active",
+        });
+      } else {
+        await createCompetition({
+          ...payload,
+          status: "active",
+        });
+      }
+
+      toast({
+        title: "Success",
+        description: `Competition ${editingId ? "updated" : "created"} successfully`,
+      });
+      setShowForm(false);
+      resetForm();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${editingId ? "update" : "create"} competition`,
+        variant: "destructive",
+      });
+    }
   };
 
   const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from("competitions")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
+    try {
+      await setCompetitionStatus({ id: id as never, status });
+      toast({
+        title: "Success",
+        description: "Competition status updated",
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update competition",
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Success",
-      description: "Competition status updated",
-    });
-    fetchCompetitions();
   };
 
-  const viewEntries = async (competitionId: string) => {
+  const viewEntries = (competitionId: string) => {
     setSelectedCompetition(competitionId);
-    const { data, error } = await supabase
-      .from("competition_entries")
-      .select("*")
-      .eq("competition_id", competitionId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch entries",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setEntries(data || []);
     setShowEntries(true);
   };
 
-  const updateEntryStatus = async (entryId: string, status: string) => {
-    const { error } = await supabase
-      .from("competition_entries")
-      .update({ status })
-      .eq("id", entryId);
-
-    if (error) {
+  const handleEntryStatus = async (entryId: string, status: string) => {
+    try {
+      await updateEntryStatus({ id: entryId as never, status });
+      toast({
+        title: "Success",
+        description: "Entry status updated",
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update entry status",
         variant: "destructive",
       });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "Entry status updated",
-    });
-
-    // Refresh entries
-    if (selectedCompetition) {
-      viewEntries(selectedCompetition);
     }
   };
+
+  if (competitions === undefined) {
+    return (
+      <Card className="bg-white">
+        <CardContent className="py-8 text-center text-gray-500">Loading competitions...</CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-white">
       <CardHeader>
         <CardTitle className="text-navy-primary flex justify-between items-center">
           <span>Competition Management</span>
-          <Dialog open={showForm} onOpenChange={setShowForm}>
+          <Dialog
+            open={showForm}
+            onOpenChange={(open) => {
+              setShowForm(open);
+              if (!open) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
               <Button
                 className="bg-gold-600 hover:bg-gold-400 text-navy-primary"
                 onClick={() => {
                   setEditingId(null);
-                  setFormData({
-                    title: "",
-                    description: "",
-                    prize: "",
-                    second_prize: "",
-                    third_prize: "",
-                    ticket_price: "",
-                    max_tickets: "",
-                    start_date: "",
-                    end_date: "",
-                    start_date: "",
-                    end_date: "",
-                  });
+                  resetForm();
                 }}
               >
                 Create Competition
@@ -463,7 +404,7 @@ const CompetitionsTab = () => {
                   <TableCell>{comp.prize}</TableCell>
                   <TableCell>{comp.second_prize || "-"}</TableCell>
                   <TableCell>{comp.third_prize || "-"}</TableCell>
-                  <TableCell>R{comp.ticket_price}</TableCell>
+                  <TableCell>R{Number(comp.ticket_price).toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge
                       className={
@@ -545,7 +486,7 @@ const CompetitionsTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.map((entry) => (
+                {(entries || []).map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell>{entry.name}</TableCell>
                     <TableCell>{entry.email}</TableCell>
@@ -578,21 +519,21 @@ const CompetitionsTab = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(entry.created_at).toLocaleDateString()}
+                      {entry.created_at ? new Date(entry.created_at).toLocaleDateString() : "-"}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
-                          onClick={() => updateEntryStatus(entry.id, "approved")}
+                          onClick={() => handleEntryStatus(entry.id, "approved")}
                         >
                           Approve
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => updateEntryStatus(entry.id, "rejected")}
+                          onClick={() => handleEntryStatus(entry.id, "rejected")}
                         >
                           Reject
                         </Button>
@@ -600,7 +541,7 @@ const CompetitionsTab = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {entries.length === 0 && (
+                {(entries || []).length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-4 text-gray-500">
                       No entries found for this competition.

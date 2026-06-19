@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,31 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         phone: "",
     });
     const [paymentMethod, setPaymentMethod] = useState("");
+    const createPayment = useAction(api.paymentsNode.createPayment);
+    const verifyPayment = useAction(api.paymentsNode.verifyPayment);
+
+    const submitHostedPaymentForm = (processUrl: string, formFields: Record<string, string>) => {
+        console.log("Submitting PayFast form", {
+            processUrl,
+            formFields,
+        });
+
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = processUrl;
+        form.style.display = "none";
+
+        Object.entries(formFields).forEach(([key, value]) => {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+    };
 
     useEffect(() => {
         const calculateTimeLeft = () => {
@@ -74,40 +101,23 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         return () => clearInterval(timer);
     }, [competition.end_date]);
 
-    const verifyAndGenerateTicket = async (reference: string) => {
-        setLoading(true);
+    const verifyAndGenerateTicket = async (reference: string, paymentReference: string) => {
         try {
-            const response = await fetch("/api/verify-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    reference,
-                    name: formData.name,
-                    phone: formData.phone,
-                    competition_id: competition.id,
-                }),
+            const data = await verifyPayment({
+                reference,
+                payment_reference: paymentReference,
             });
 
-            const data = await response.json();
-
-            if (data.success) {
-                // Navigate to success page with ticket details
+            if (data.success && data.competition_success) {
                 navigate("/competition/success", {
-                    state: {
-                        ticket_number: data.ticket_number,
-                        reference: data.reference,
-                        participant_name: data.participant_name,
-                        email: data.email,
-                        competition_title: data.competition_title,
-                        prize: data.prize,
-                        draw_date: data.draw_date,
-                    },
+                    state: data.competition_success,
                 });
-            } else {
-                toast.error("Verification Failed", {
-                    description: data.error || "Could not verify your payment. Please contact support.",
-                });
+                return;
             }
+
+            toast.error("Verification Failed", {
+                description: "Could not verify your payment. Please contact support.",
+            });
         } catch (error) {
             console.error("Verification error:", error);
             toast.error("Error", {
@@ -118,7 +128,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         }
     };
 
-    const handlePaystack = (e: React.FormEvent) => {
+    const handlePaystack = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!formData.name || !formData.email || !formData.phone) {
@@ -143,96 +153,65 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         }
 
         try {
+            setLoading(true);
+            const initData = await createPayment({
+                purpose: "competition_entry",
+                provider: "paystack",
+                competition_id: competition.id as never,
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                site_url: window.location.origin,
+            });
+
             const handler = window.PaystackPop.setup({
                 key: publicKey,
-                email: formData.email,
-                amount: competition.entry_fee * 100, // Convert ZAR to kobo (cents)
+                email: initData.email,
+                amount: Math.round(Number(initData.amount) * 100),
                 currency: "ZAR",
-                metadata: {
-                    name: formData.name,
-                    phone: formData.phone,
-                    competition_id: competition.id,
-                    custom_fields: [
-                        {
-                            display_name: "Full Name",
-                            variable_name: "full_name",
-                            value: formData.name,
-                        },
-                        {
-                            display_name: "Phone",
-                            variable_name: "phone",
-                            value: formData.phone,
-                        },
-                    ],
-                },
+                metadata: initData.metadata,
                 onSuccess: (response) => {
                     toast.success("Payment Successful!", {
                         description: "Generating your ticket...",
                     });
-                    verifyAndGenerateTicket(response.reference);
+                    void verifyAndGenerateTicket(response.reference, initData.payment_reference);
                 },
                 onClose: () => {
                     toast.info("Payment Cancelled", {
                         description: "You can try again when you're ready.",
                     });
+                    setLoading(false);
                 },
             });
 
             handler.openIframe();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Paystack error:", error);
             toast.error("Payment Error", {
-                description: "Failed to initialize payment. Please try again.",
+                description: error.message || "Failed to initialize payment. Please try again.",
             });
+            setLoading(false);
         }
     };
 
     const handlePayFast = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/.netlify/functions/payfast-signature', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: competition.entry_fee.toString(),
-                    item_name: `Ticket Selection for ${competition.title}`,
-                    name: formData.name,
-                    email: formData.email,
-                    custom_str1: competition.id,
-                    custom_str2: formData.email,
-                    custom_str3: formData.name,
-                    custom_str4: formData.phone,
-                })
+            const pfData = await createPayment({
+                purpose: "competition_entry",
+                provider: "payfast",
+                competition_id: competition.id as never,
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                site_url: window.location.origin,
             });
 
-            if (!response.ok) {
-                throw new Error(`Failed to initialize PayFast payment: ${response.statusText}`);
-            }
-
-            const pfData = await response.json();
-            const { signature, ...restData } = pfData;
-            const allData = { ...restData, signature };
-
-            // Create and submit form
-            const form = document.createElement("form");
-            form.method = "POST";
-            form.action = "https://sandbox.payfast.co.za/eng/process";
-            form.style.display = "none";
-
-            for (const key in allData) {
-                const input = document.createElement("input");
-                input.type = "hidden";
-                input.name = key;
-                input.value = allData[key];
-                form.appendChild(input);
-            }
-
-            document.body.appendChild(form);
-            form.submit();
-        } catch (error) {
+            submitHostedPaymentForm(pfData.process_url, pfData.form_fields);
+        } catch (error: any) {
             console.error("PayFast Error:", error);
             toast.error("Payment Error", {
-                description: "Failed to initialize PayFast payment. Please try again.",
+                description: error.message || "Failed to initialize PayFast payment. Please try again.",
             });
             setLoading(false);
         }
@@ -252,9 +231,9 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         }
 
         if (paymentMethod === "paystack") {
-            handlePaystack(e);
+            void handlePaystack(e);
         } else if (paymentMethod === "payfast") {
-            handlePayFast();
+            void handlePayFast();
         }
     };
 
@@ -436,7 +415,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                     <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
                         {[
                             { step: 1, title: "Fill in Your Details", desc: "Enter your name, email, and phone number in the form below." },
-                            { step: 2, title: "Pay Securely", desc: `Entry costs R${competition.entry_fee}. Pay securely via Paystack (card, EFT, or bank transfer).` },
+                            { step: 2, title: "Pay Securely", desc: `Entry costs R${competition.entry_fee}. Pay securely via Paystack or PayFast.` },
                             { step: 3, title: "Receive Your Ticket", desc: "Your unique digital ticket will be emailed to you instantly after payment." },
                             { step: 4, title: "Wait for Results", desc: "Winners announced after the countdown ends via live random draw!" }
                         ].map((item, index) => (

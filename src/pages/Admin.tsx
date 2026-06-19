@@ -18,6 +18,7 @@ import ResourcesTab from "@/components/admin/ResourcesTab";
 
 const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,11 +53,13 @@ const Admin = () => {
     }
 
     setIsAdmin(true);
+    setAdminUserId(user.id);
     setLoading(false);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setAdminUserId(null);
     navigate("/");
   };
 
@@ -104,7 +107,7 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="applications">
-            <ApplicationsTab />
+            <ApplicationsTab reviewedByUserId={adminUserId} />
           </TabsContent>
 
           <TabsContent value="donors">

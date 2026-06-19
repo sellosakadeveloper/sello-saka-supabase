@@ -6,13 +6,14 @@ This file applies to the root `supabase/` directory.
 
 ## Ownership
 
-This subtree owns Supabase project artifacts such as configuration, migrations, and edge functions.
+This subtree owns legacy Supabase project artifacts such as configuration, migrations, and edge functions.
 
 ## Boundaries
 
 - Schema changes and backend-side behaviors belong here.
 - Frontend client setup does not belong here; that lives in `src/integrations/supabase`.
 - Keep migrations authoritative for database structure changes.
+- Only add new work here if it is needed to support an unmigrated legacy flow, a rollback path, or the eventual teardown of Supabase.
 
 ## Current Structure
 

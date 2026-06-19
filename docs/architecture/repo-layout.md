@@ -2,13 +2,14 @@
 
 ## Overview
 
-The repository is organized around the current project structure rather than a separate domain-driven taxonomy. The main code lives in `src/`, Supabase project artifacts live in `supabase/`, static public assets live in `public/`, and local ticket-related notes live in `ticket_code/`.
+The repository is organized around the current project structure rather than a separate domain-driven taxonomy. The main code lives in `src/`, Convex backend code lives in `convex/`, legacy Supabase project artifacts live in `supabase/`, static public assets live in `public/`, and local ticket-related notes live in `ticket_code/`.
 
 ## Main Directories
 
 - `src/`: frontend application code
+- `convex/`: Convex schema and server functions
 - `public/`: stable public-path assets
-- `supabase/`: Supabase configuration, migrations, and edge functions
+- `supabase/`: legacy Supabase configuration, migrations, and edge functions that remain during migration, plus any temporary support for the still-legacy admin auth gate
 - `ticket_code/`: local markdown notes for the ticketing area
 - `docs/`: human-facing architecture and feature documentation
 
@@ -19,7 +20,8 @@ The repository is organized around the current project structure rather than a s
 - `src/components/` contains shared presentation and feature-supporting components.
 - `src/components/admin/` contains admin dashboard tab content and admin-only feature logic.
 - `src/components/ui/` contains shared UI primitives and wrappers.
-- `src/integrations/supabase/` contains the frontend Supabase client and generated types.
+- `src/integrations/convex/` contains the browser Convex client setup.
+- `src/integrations/supabase/` contains the legacy frontend Supabase client and generated types.
 - `src/assets/` contains images and brand assets imported by code.
 
 ## Why The Layout Matters
@@ -30,6 +32,7 @@ The repo is already structured in a way that signals ownership:
 - Shared UI stays in `src/components`.
 - Admin-specific behavior stays grouped in `src/components/admin`.
 - External system coupling stays in `src/integrations`.
+- Backend product logic stays in `convex/` once it moves off Supabase.
 
 The `AGENTS.md` tree follows these same boundaries so instructions stay close to the code they govern.
 

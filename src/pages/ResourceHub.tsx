@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import ResourceCard from "@/components/ResourceCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,8 @@ import { Search, X } from "lucide-react";
 import { FadeIn } from "@/components/animations/FadeIn";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface Resource {
     id: string;
@@ -47,38 +48,21 @@ const CATEGORIES = [
 ];
 
 const ResourceHub = () => {
-    const [resources, setResources] = useState<Resource[]>([]);
     const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const resources = useQuery(api.public.listResources);
 
     useEffect(() => {
         document.title = "Resource Hub | Sello Saka Foundation";
-        fetchResources();
     }, []);
 
     useEffect(() => {
         filterResources();
     }, [searchQuery, selectedCategory, resources]);
 
-    const fetchResources = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from("resources")
-            .select("*")
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            console.error("Error fetching resources:", error);
-        } else {
-            setResources(data as Resource[] || []);
-        }
-        setLoading(false);
-    };
-
     const filterResources = () => {
-        let filtered = resources;
+        let filtered = resources || [];
 
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
@@ -155,7 +139,7 @@ const ResourceHub = () => {
 
                 {/* Resources Grid */}
                 <section className="py-12 container mx-auto px-4">
-                    {loading ? (
+                    {resources === undefined ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {[1, 2, 3, 4, 5, 6].map((i) => (
                                 <div key={i} className="h-64 bg-gray-200 rounded-lg animate-pulse"></div>

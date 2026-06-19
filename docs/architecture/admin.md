@@ -2,7 +2,7 @@
 
 ## Overview
 
-The admin area is split between a route-level gatekeeper and tab-level feature components.
+The admin area is split between a route-level gatekeeper and tab-level feature components. The route is still Supabase-authenticated for now while the backend migration to Convex continues, but the tab data layer and file uploads have moved to Convex for the migrated domains.
 
 ## Entry And Access Control
 
@@ -22,7 +22,7 @@ This separation keeps the admin page focused on composition while feature-specif
 
 ## Data Access Pattern
 
-Admin tabs typically interact with Supabase directly through the shared client. `ResourcesTab.tsx` is a representative example: it loads rows, opens form dialogs, uploads files to storage, and writes updates back to the database.
+Admin tabs now interact with Convex for business data and file uploads. The remaining Supabase calls in the admin subtree are limited to the auth gate in `src/pages/Admin.tsx`.
 
 ## Architectural Constraint
 

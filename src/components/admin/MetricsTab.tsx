@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,13 +14,12 @@ interface Metric {
   id: string;
   metric_name: string;
   metric_value: number;
-  metric_type: string;
+  metric_type: string | null;
   year: number;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 const MetricsTab = () => {
-  const [metrics, setMetrics] = useState<Metric[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     metric_name: "",
@@ -28,83 +28,68 @@ const MetricsTab = () => {
     year: new Date().getFullYear().toString(),
   });
   const { toast } = useToast();
+  const metrics = useQuery(api.admin.listImpactMetrics) as Metric[] | undefined;
+  const createMetric = useMutation(api.admin.createImpactMetric);
+  const deleteMetricMutation = useMutation(api.admin.deleteImpactMetric);
 
-  useEffect(() => {
-    fetchMetrics();
-  }, []);
-
-  const fetchMetrics = async () => {
-    const { data, error } = await supabase
-      .from("impact_metrics")
-      .select("*")
-      .order("year", { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch metrics",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setMetrics(data || []);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const { error } = await supabase.from("impact_metrics").insert({
-      metric_name: formData.metric_name,
-      metric_value: parseInt(formData.metric_value),
-      metric_type: formData.metric_type,
-      year: parseInt(formData.year),
-    });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create metric",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "Metric created successfully",
-    });
-    setShowForm(false);
+  const resetForm = () => {
     setFormData({
       metric_name: "",
       metric_value: "",
       metric_type: "",
       year: new Date().getFullYear().toString(),
     });
-    fetchMetrics();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await createMetric({
+        metric_name: formData.metric_name,
+        metric_value: parseInt(formData.metric_value, 10),
+        metric_type: formData.metric_type,
+        year: parseInt(formData.year, 10),
+      });
+
+      toast({
+        title: "Success",
+        description: "Metric created successfully",
+      });
+      setShowForm(false);
+      resetForm();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to create metric",
+        variant: "destructive",
+      });
+    }
   };
 
   const deleteMetric = async (id: string) => {
-    const { error } = await supabase
-      .from("impact_metrics")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
+    try {
+      await deleteMetricMutation({ id: id as never });
+      toast({
+        title: "Success",
+        description: "Metric deleted successfully",
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to delete metric",
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Success",
-      description: "Metric deleted successfully",
-    });
-    fetchMetrics();
   };
+
+  if (metrics === undefined) {
+    return (
+      <Card className="bg-white">
+        <CardContent className="py-8 text-center text-gray-500">Loading metrics...</CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-white">
@@ -197,7 +182,7 @@ const MetricsTab = () => {
                   <TableCell>{metric.metric_type}</TableCell>
                   <TableCell>{metric.year}</TableCell>
                   <TableCell>
-                    {new Date(metric.updated_at).toLocaleDateString()}
+                    {metric.updated_at ? new Date(metric.updated_at).toLocaleDateString() : "-"}
                   </TableCell>
                   <TableCell>
                     <Button

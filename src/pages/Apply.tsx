@@ -9,11 +9,13 @@ import { Heart, FileText, CheckCircle2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 const Apply = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const submitApplication = useMutation(api.forms.submitApplication);
   const [formData, setFormData] = useState({
     survivorName: "",
     dateOfBirth: "",
@@ -69,23 +71,19 @@ const Apply = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("applications")
-        .insert([{
-          survivor_name: formData.survivorName,
-          date_of_birth: formData.dateOfBirth,
-          guardian_name: formData.guardianName,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          diagnosis_details: formData.diagnosisDetails,
-          treatment_details: formData.treatmentDetails,
-          current_challenges: formData.currentChallenges,
-          programs_interested: formData.programsInterested,
-          consent: formData.consent
-        }]);
-
-      if (error) throw error;
+      await submitApplication({
+        survivor_name: formData.survivorName,
+        date_of_birth: formData.dateOfBirth,
+        guardian_name: formData.guardianName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        diagnosis_details: formData.diagnosisDetails,
+        treatment_details: formData.treatmentDetails,
+        current_challenges: formData.currentChallenges,
+        programs_interested: formData.programsInterested,
+        consent: formData.consent,
+      });
 
       toast({
         title: "Application Submitted!",

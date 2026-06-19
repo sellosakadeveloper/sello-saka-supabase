@@ -7,12 +7,14 @@ The home area acts as the main landing experience for the site and introduces th
 ## Relevant Source Areas
 
 - `src/pages/Home.tsx`
+- `src/components/ActiveTeams.tsx`
+- `src/components/ActiveImpactStories.tsx`
 - shared site chrome in `src/components/Header.tsx` and `src/components/Footer.tsx`
 - supporting shared content components under `src/components/`
 
 ## Architectural Notes
 
-The home page fits the repo's standard public-page pattern: a route-level page component composes shared layout and reusable visual sections. Any shared sections extracted from this page should remain in `src/components/`, not duplicated across other pages.
+The home page fits the repo's standard public-page pattern: a route-level page component composes shared layout and reusable visual sections. The active team and impact-story sections are now Convex-backed shared components, while the page itself remains route-focused. Any shared sections extracted from this page should remain in `src/components/`, not duplicated across other pages.
 
 ## Related Agent Docs
 

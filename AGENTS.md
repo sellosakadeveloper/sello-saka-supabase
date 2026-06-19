@@ -6,7 +6,7 @@ This file applies to the entire repository unless a deeper `AGENTS.md` overrides
 
 ## Purpose
 
-This repo contains a Vite + React + TypeScript frontend with Supabase integration. The main frontend entrypoints are `src/main.tsx` and `src/App.tsx`. Route registration is centralized in `src/App.tsx`.
+This repo contains a Vite + React + TypeScript frontend with a staged backend migration from Supabase to Convex. The main frontend entrypoints are `src/main.tsx` and `src/App.tsx`. Route registration is centralized in `src/App.tsx`.
 
 ## Directory Boundaries
 
@@ -14,7 +14,8 @@ This repo contains a Vite + React + TypeScript frontend with Supabase integratio
 - Put shared layout, UI, and reusable behavior in `src/components`.
 - Put admin-specific feature components in `src/components/admin`.
 - Put third-party or backend integration code in `src/integrations`.
-- Put Supabase project artifacts in `supabase`.
+- Put active Convex backend code in `convex`.
+- Put legacy Supabase project artifacts in `supabase`.
 - Put static public files in `public`.
 - Put local markdown notes or ticket-specific working docs in `ticket_code`.
 
@@ -22,7 +23,8 @@ This repo contains a Vite + React + TypeScript frontend with Supabase integratio
 
 - Prefer extending an existing subtree with local instructions before creating new top-level directories.
 - Keep feature logic near the subtree that owns it.
-- Do not place Supabase access code directly into unrelated shared UI primitives.
+- Do not place backend access code directly into unrelated shared UI primitives.
+- Prefer Convex for new migrated read and write paths. Keep Supabase code limited to legacy flows that have not been cut over yet.
 - When a new subtree gains its own responsibility, add a local `AGENTS.md` or extend the nearest existing one.
 
 ## Documentation Rules
@@ -37,3 +39,17 @@ This repo contains a Vite + React + TypeScript frontend with Supabase integratio
 - Repo layout overview: `docs/architecture/repo-layout.md`
 - Frontend architecture: `docs/architecture/frontend.md`
 - Data access architecture: `docs/architecture/data-access.md`
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

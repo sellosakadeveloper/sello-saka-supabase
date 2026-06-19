@@ -10,10 +10,13 @@ The auth and admin areas control privileged access and content management for th
 - `src/pages/Admin.tsx`
 - `src/components/admin/`
 - `src/integrations/supabase/client.ts`
+- `src/integrations/convex/client.ts`
 
 ## Current Flow
 
-Authentication starts in the auth route and privileged access is enforced at the admin page. The admin route checks the current user and confirms the `admin` role before rendering the dashboard.
+Authentication starts in the auth route and privileged access is enforced at the admin page. The admin route still checks the current user and confirms the `admin` role through Supabase before rendering the dashboard. Convex now carries the migrated admin business data, payments, and public/content flows, but it is not yet the auth source of truth.
+
+The admin dashboard itself should now be treated as a Convex-backed data surface with a Supabase-authenticated gate.
 
 ## Architectural Notes
 

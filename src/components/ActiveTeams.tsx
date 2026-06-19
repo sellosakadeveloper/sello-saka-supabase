@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Linkedin, Mail } from "lucide-react";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { HoverCard } from "@/components/animations/HoverCard";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface TeamMember {
     id: string;
@@ -20,36 +21,12 @@ interface TeamMember {
 }
 
 const ActiveTeams = () => {
-    const [teams, setTeams] = useState<TeamMember[]>([]);
-    const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState<TeamMember | null>(null);
 
-    useEffect(() => {
-        const fetchTeams = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from("teams")
-                    .select("id,name,role,bio,image_url,linkedin_url,email,status,created_at")
-                    .eq("status", "active")
-                    .order("created_at", { ascending: true });
+    const teams = useQuery(api.public.listActiveTeams);
 
-                if (error) {
-                    console.error("Error fetching teams:", error);
-                } else {
-                    setTeams(data || []);
-                }
-            } catch (error) {
-                console.error("Error:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchTeams();
-    }, []);
-
-    if (loading) {
+    if (teams === undefined) {
         return <div className="text-center text-white">Loading team...</div>;
     }
 

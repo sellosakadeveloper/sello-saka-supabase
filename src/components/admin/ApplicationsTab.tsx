@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,73 +12,49 @@ import { Eye } from "lucide-react";
 
 interface Application {
   id: string;
-  survivor_name: string;
-  guardian_name: string;
+  survivor_name: string | null;
+  guardian_name: string | null;
   email: string;
   phone: string;
-  date_of_birth: string;
-  address: string;
-  diagnosis_details: string;
-  treatment_details: string;
-  current_challenges: string;
+  date_of_birth: string | null;
+  address: string | null;
+  diagnosis_details: string | null;
+  treatment_details: string | null;
+  current_challenges: string | null;
   programs_interested: string[];
   status: string;
-  created_at: string;
+  created_at: string | null;
 }
 
-const ApplicationsTab = () => {
-  const [applications, setApplications] = useState<Application[]>([]);
+interface ApplicationsTabProps {
+  reviewedByUserId?: string | null;
+}
+
+const ApplicationsTab = ({ reviewedByUserId }: ApplicationsTabProps) => {
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetchApplications();
-  }, []);
-
-  const fetchApplications = async () => {
-    const { data, error } = await supabase
-      .from("applications")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch applications",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setApplications(data || []);
-  };
+  const applications = useQuery(api.admin.listApplications) as Application[] | undefined;
+  const updateApplicationStatus = useMutation(api.admin.updateApplicationStatus);
 
   const updateStatus = async (id: string, status: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const { error } = await supabase
-      .from("applications")
-      .update({
+    try {
+      await updateApplicationStatus({
+        id: id as never,
         status,
-        reviewed_by: user?.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+        reviewed_by: reviewedByUserId || undefined,
+      });
 
-    if (error) {
+      toast({
+        title: "Success",
+        description: "Application status updated",
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update application",
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Success",
-      description: "Application status updated",
-    });
-    fetchApplications();
   };
 
   const getStatusColor = (status: string) => {
@@ -92,6 +69,14 @@ const ApplicationsTab = () => {
         return "bg-gray-500";
     }
   };
+
+  if (applications === undefined) {
+    return (
+      <Card className="bg-white">
+        <CardContent className="py-8 text-center text-gray-500">Loading applications...</CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-white">
@@ -133,7 +118,7 @@ const ApplicationsTab = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(app.created_at).toLocaleDateString()}
+                    {app.created_at ? new Date(app.created_at).toLocaleDateString() : "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">

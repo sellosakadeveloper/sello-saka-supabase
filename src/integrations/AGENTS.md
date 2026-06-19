@@ -13,6 +13,7 @@ This subtree owns client-side access points to external systems and generated ty
 - Connection setup and generated types belong here.
 - Pages and components may consume integrations from here, but should not reimplement connection setup.
 - Keep integration-specific details localized so the rest of the app depends on stable import paths.
+- During the migration, keep Convex setup in `convex/` wrappers and Supabase setup in `supabase/` wrappers. New work should prefer the Convex path unless the feature is still legacy-only for auth or rollback support.
 
 ## References
 

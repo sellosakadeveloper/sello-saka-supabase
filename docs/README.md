@@ -32,4 +32,4 @@ This repository keeps two parallel documentation systems:
 
 These docs describe the current codebase layout and behavior. They are meant for orientation and maintenance, not as product requirements.
 
-The backend is currently in transition: public reads, form submissions, admin CRUD, payment workflows, and file uploads use Convex. Supabase remains for the admin auth gate until the final cutover is complete.
+The backend is currently in transition: Convex now handles public reads, form submissions, admin CRUD, payment workflows, file uploads, and the active admin auth gate. Supabase remains in the repository as a legacy migration artifact until cleanup and decommissioning are complete.

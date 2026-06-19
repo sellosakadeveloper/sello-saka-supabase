@@ -1,5 +1,18 @@
-import { query, mutation } from "./_generated/server";
+import { createAccount, modifyAccountCredentials } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { sendAccountSetupEmail } from "./authEmail";
+import {
+  BOOTSTRAP_ADMIN_EMAIL,
+  SETUP_TOKEN_TTL_MS,
+  generateSetupToken,
+  getViewerContext,
+  hashSetupToken,
+  normalizeEmail,
+  normalizeRole,
+  requireAdmin,
+} from "./authHelpers";
 
 function sortByCreatedAtDesc<T extends { created_at?: string | null; _creationTime: number }>(
   items: T[],
@@ -28,9 +41,589 @@ async function deleteStoredFile(ctx: { storage: { delete: (storageId: string) =>
   await ctx.storage.delete(storageId);
 }
 
+export const getBootstrapStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const bootstrapManagedUser = await ctx.db
+      .query("managed_users")
+      .withIndex("by_email", (q) => q.eq("email", BOOTSTRAP_ADMIN_EMAIL))
+      .unique();
+    const bootstrapAccount = await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) => q.eq("provider", "password").eq("providerAccountId", BOOTSTRAP_ADMIN_EMAIL))
+      .unique();
+
+    return {
+      requiresBootstrap: !bootstrapAccount,
+      bootstrapEmail: BOOTSTRAP_ADMIN_EMAIL,
+    };
+  },
+});
+
+export const getAdminSession = query({
+  args: {},
+  handler: async (ctx) => {
+    const viewer = await getViewerContext(ctx as any);
+    if (!viewer) {
+      return null;
+    }
+
+    return {
+      email: viewer.email,
+      isAdmin: viewer.isAdmin,
+      isBootstrapAdmin: viewer.isBootstrapAdmin,
+      authUserId: String(viewer.authUserId),
+      reviewedByUserId: String(viewer.authUserId),
+      status: viewer.managedUser?.status ?? (viewer.isBootstrapAdmin ? "active" : null),
+      role:
+        viewer.roleRecords.find((role) => role.role === "admin")?.role ??
+        (viewer.isBootstrapAdmin ? "admin" : viewer.roleRecords[0]?.role ?? null),
+    };
+  },
+});
+
+export const ensureViewerRecord = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const viewer = await getViewerContext(ctx as any);
+    if (!viewer) {
+      throw new Error("Not authenticated");
+    }
+
+    const now = new Date().toISOString();
+    const managedUser = viewer.managedUser;
+
+    if (managedUser) {
+      const patch: Record<string, unknown> = {
+        auth_user_id: viewer.authUserId,
+        updated_at: now,
+      };
+      if (managedUser.status === "invited") {
+        patch.status = "active";
+        patch.activated_at = managedUser.activated_at ?? now;
+      }
+      await ctx.db.patch(managedUser._id, patch);
+    } else if (viewer.isBootstrapAdmin) {
+      await ctx.db.insert("managed_users", {
+        email: viewer.email,
+        auth_user_id: viewer.authUserId,
+        status: "active",
+        created_by_auth_user_id: viewer.authUserId,
+        activated_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    const roleRecords = viewer.roleRecords;
+    if (viewer.isBootstrapAdmin && !roleRecords.some((role) => role.role === "admin")) {
+      await ctx.db.insert("user_roles", {
+        user_id: String(viewer.authUserId),
+        auth_user_id: viewer.authUserId,
+        email: viewer.email,
+        role: "admin",
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    for (const roleRecord of roleRecords) {
+      await ctx.db.patch(roleRecord._id, {
+        user_id: String(viewer.authUserId),
+        auth_user_id: viewer.authUserId,
+        email: viewer.email,
+        updated_at: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+export const getCurrentAdminStateInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await getViewerContext(ctx as any);
+  },
+});
+
+export const getManagedUserByEmailInternal = internalQuery({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("managed_users")
+      .withIndex("by_email", (q) => q.eq("email", normalizeEmail(args.email)))
+      .unique();
+  },
+});
+
+export const getPasswordAccountByEmailInternal = internalQuery({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) =>
+        q.eq("provider", "password").eq("providerAccountId", normalizeEmail(args.email)),
+      )
+      .unique();
+  },
+});
+
+export const getRoleByEmailInternal = internalQuery({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const email = normalizeEmail(args.email);
+    const roleRecord = await ctx.db
+      .query("user_roles")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+    return roleRecord?.role ?? (email === BOOTSTRAP_ADMIN_EMAIL ? "admin" : "staff");
+  },
+});
+
+export const upsertManagedUserInviteInternal = internalMutation({
+  args: {
+    email: v.string(),
+    role: v.string(),
+    status: v.string(),
+    invitedByAuthUserId: v.optional(v.id("users")),
+    setupTokenHash: v.string(),
+    setupTokenExpiresAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const email = normalizeEmail(args.email);
+    const role = normalizeRole(args.role);
+    const existingManagedUser = await ctx.db
+      .query("managed_users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+
+    let authUserId = existingManagedUser?.auth_user_id;
+    if (existingManagedUser) {
+      await ctx.db.patch(existingManagedUser._id, {
+        status: args.status,
+        created_by_auth_user_id: args.invitedByAuthUserId ?? existingManagedUser.created_by_auth_user_id,
+        setup_token_hash: args.setupTokenHash,
+        setup_token_expires_at: args.setupTokenExpiresAt,
+        last_setup_email_sent_at: now,
+        updated_at: now,
+      });
+    } else {
+      await ctx.db.insert("managed_users", {
+        email,
+        auth_user_id: authUserId,
+        status: args.status,
+        created_by_auth_user_id: args.invitedByAuthUserId,
+        setup_token_hash: args.setupTokenHash,
+        setup_token_expires_at: args.setupTokenExpiresAt,
+        last_setup_email_sent_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    const existingRole =
+      (authUserId
+        ? (await ctx.db
+            .query("user_roles")
+            .withIndex("by_auth_user_id", (q) => q.eq("auth_user_id", authUserId))
+            .collect())[0]
+        : null) ||
+      (await ctx.db
+        .query("user_roles")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .unique());
+
+    if (existingRole) {
+      await ctx.db.patch(existingRole._id, {
+        user_id: authUserId ? String(authUserId) : existingRole.user_id,
+        auth_user_id: authUserId,
+        email,
+        role,
+        updated_at: now,
+      });
+    } else {
+      await ctx.db.insert("user_roles", {
+        user_id: authUserId ? String(authUserId) : undefined,
+        auth_user_id: authUserId,
+        email,
+        role,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+  },
+});
+
+export const activateManagedUserInternal = internalMutation({
+  args: {
+    email: v.string(),
+    authUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const email = normalizeEmail(args.email);
+    const managedUser = await ctx.db
+      .query("managed_users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+
+    if (managedUser) {
+      await ctx.db.patch(managedUser._id, {
+        auth_user_id: args.authUserId,
+        status: "active",
+        setup_token_hash: undefined,
+        setup_token_expires_at: undefined,
+        activated_at: managedUser.activated_at ?? now,
+        updated_at: now,
+      });
+    }
+
+    const roleRecords = [
+      ...(await ctx.db.query("user_roles").withIndex("by_email", (q) => q.eq("email", email)).collect()),
+      ...(await ctx.db.query("user_roles").withIndex("by_user_id", (q) => q.eq("user_id", String(args.authUserId))).collect()),
+    ] as any[];
+
+    const seen = new Set<string>();
+    for (const roleRecord of roleRecords) {
+      if (seen.has(String(roleRecord._id))) {
+        continue;
+      }
+      seen.add(String(roleRecord._id));
+      await ctx.db.patch(roleRecord._id, {
+        user_id: String(args.authUserId),
+        auth_user_id: args.authUserId,
+        email,
+        updated_at: now,
+      });
+    }
+  },
+});
+
+export const bootstrapManagedUserInternal = internalMutation({
+  args: {
+    email: v.string(),
+    authUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const email = normalizeEmail(args.email);
+    const managedUser = await ctx.db
+      .query("managed_users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+
+    if (managedUser) {
+      await ctx.db.patch(managedUser._id, {
+        auth_user_id: args.authUserId,
+        status: "active",
+        created_by_auth_user_id: args.authUserId,
+        activated_at: managedUser.activated_at ?? now,
+        updated_at: now,
+      });
+    } else {
+      await ctx.db.insert("managed_users", {
+        email,
+        auth_user_id: args.authUserId,
+        status: "active",
+        created_by_auth_user_id: args.authUserId,
+        activated_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    const existingRole = await ctx.db
+      .query("user_roles")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+
+    if (existingRole) {
+      await ctx.db.patch(existingRole._id, {
+        user_id: String(args.authUserId),
+        auth_user_id: args.authUserId,
+        email,
+        role: "admin",
+        updated_at: now,
+      });
+    } else {
+      await ctx.db.insert("user_roles", {
+        user_id: String(args.authUserId),
+        auth_user_id: args.authUserId,
+        email,
+        role: "admin",
+        created_at: now,
+        updated_at: now,
+      });
+    }
+  },
+});
+
+export const bootstrapAdminAccount = action({
+  args: {
+    email: v.string(),
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const email = normalizeEmail(args.email);
+    if (email !== BOOTSTRAP_ADMIN_EMAIL) {
+      throw new Error("Unauthorized");
+    }
+
+    const existingAccount = await ctx.runQuery((internal as any).admin.getPasswordAccountByEmailInternal, {
+      email,
+    });
+    if (existingAccount) {
+      throw new Error("Bootstrap admin account already exists");
+    }
+
+    if (!args.password || args.password.length < 8) {
+      throw new Error("Password must be at least 8 characters");
+    }
+
+    const created = await createAccount(ctx as any, {
+      provider: "password",
+      account: {
+        id: email,
+        secret: args.password,
+      },
+      profile: {
+        email,
+      },
+    });
+
+    await ctx.runMutation((internal as any).admin.bootstrapManagedUserInternal, {
+      email,
+      authUserId: created.user._id,
+    });
+
+    return { success: true };
+  },
+});
+
+export const inviteManagedUser = action({
+  args: {
+    email: v.string(),
+    role: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const adminState = await ctx.runQuery((internal as any).admin.getCurrentAdminStateInternal, {});
+    if (!adminState?.isAdmin) {
+      throw new Error("Unauthorized");
+    }
+
+    const email = normalizeEmail(args.email);
+    if (email === BOOTSTRAP_ADMIN_EMAIL) {
+      throw new Error("The bootstrap admin account is managed separately");
+    }
+
+    const existingManagedUser = await ctx.runQuery((internal as any).admin.getManagedUserByEmailInternal, {
+      email,
+    });
+    if (existingManagedUser?.status === "disabled") {
+      throw new Error("This account is disabled");
+    }
+
+    const token = generateSetupToken();
+    const tokenHash = await hashSetupToken(token);
+    await ctx.runMutation((internal as any).admin.upsertManagedUserInviteInternal, {
+      email,
+      role: normalizeRole(args.role),
+      status: existingManagedUser?.status === "active" ? "active" : "invited",
+      invitedByAuthUserId: adminState.authUserId,
+      setupTokenHash: tokenHash,
+      setupTokenExpiresAt: Date.now() + SETUP_TOKEN_TTL_MS,
+    });
+
+    await sendAccountSetupEmail({
+      email,
+      token,
+      kind: "invite",
+    });
+
+    return { success: true };
+  },
+});
+
+export const requestPasswordSetup = action({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const email = normalizeEmail(args.email);
+    const managedUser = await ctx.runQuery((internal as any).admin.getManagedUserByEmailInternal, {
+      email,
+    });
+    const passwordAccount = await ctx.runQuery((internal as any).admin.getPasswordAccountByEmailInternal, {
+      email,
+    });
+
+    if (!managedUser && !passwordAccount) {
+      return { success: true };
+    }
+
+    if (managedUser?.status === "disabled") {
+      throw new Error("This account is disabled");
+    }
+
+    const role = await ctx.runQuery((internal as any).admin.getRoleByEmailInternal, {
+      email,
+    });
+    const token = generateSetupToken();
+    const tokenHash = await hashSetupToken(token);
+
+    await ctx.runMutation((internal as any).admin.upsertManagedUserInviteInternal, {
+      email,
+      role,
+      status: managedUser?.status === "active" || passwordAccount ? "active" : "invited",
+      invitedByAuthUserId: managedUser?.created_by_auth_user_id,
+      setupTokenHash: tokenHash,
+      setupTokenExpiresAt: Date.now() + SETUP_TOKEN_TTL_MS,
+    });
+
+    await sendAccountSetupEmail({
+      email,
+      token,
+      kind: "reset",
+    });
+
+    return { success: true };
+  },
+});
+
+export const completeUserSetup = action({
+  args: {
+    email: v.string(),
+    token: v.string(),
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const email = normalizeEmail(args.email);
+    if (!args.password || args.password.length < 8) {
+      throw new Error("Password must be at least 8 characters");
+    }
+
+    const managedUser = await ctx.runQuery((internal as any).admin.getManagedUserByEmailInternal, {
+      email,
+    });
+    if (!managedUser) {
+      throw new Error("Invitation not found");
+    }
+    if (managedUser.status === "disabled") {
+      throw new Error("This account is disabled");
+    }
+    if (!managedUser.setup_token_hash || !managedUser.setup_token_expires_at) {
+      throw new Error("This setup link is no longer valid");
+    }
+    if (managedUser.setup_token_expires_at < Date.now()) {
+      throw new Error("This setup link has expired");
+    }
+
+    const providedHash = await hashSetupToken(args.token);
+    if (providedHash !== managedUser.setup_token_hash) {
+      throw new Error("Invalid setup link");
+    }
+
+    const existingAccount = await ctx.runQuery((internal as any).admin.getPasswordAccountByEmailInternal, {
+      email,
+    });
+
+    let authUserId = existingAccount?.userId;
+    if (existingAccount) {
+      await modifyAccountCredentials(ctx as any, {
+        provider: "password",
+        account: {
+          id: email,
+          secret: args.password,
+        },
+      });
+    } else {
+      const created = await createAccount(ctx as any, {
+        provider: "password",
+        account: {
+          id: email,
+          secret: args.password,
+        },
+        profile: {
+          email,
+        },
+      });
+      authUserId = created.user._id;
+    }
+
+    await ctx.runMutation((internal as any).admin.activateManagedUserInternal, {
+      email,
+      authUserId,
+    });
+
+    return { success: true };
+  },
+});
+
+export const listManagedUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const viewer = await requireAdmin(ctx as any);
+    const managedUsers = (await ctx.db.query("managed_users").collect()) as any[];
+    const roleRows = (await ctx.db.query("user_roles").collect()) as any[];
+    const roleByEmail = new Map<string, string>();
+    const roleByAuthUserId = new Map<string, string>();
+
+    for (const roleRow of roleRows) {
+      if (roleRow.email) {
+        roleByEmail.set(roleRow.email, roleRow.role);
+      }
+      if (roleRow.auth_user_id) {
+        roleByAuthUserId.set(String(roleRow.auth_user_id), roleRow.role);
+      }
+    }
+
+    const mapped = sortByCreatedAtDesc(managedUsers).map((managedUser) => ({
+      id: String(managedUser._id),
+      email: managedUser.email,
+      authUserId: managedUser.auth_user_id ? String(managedUser.auth_user_id) : null,
+      status: managedUser.status,
+      role:
+        (managedUser.auth_user_id ? roleByAuthUserId.get(String(managedUser.auth_user_id)) : undefined) ||
+        roleByEmail.get(managedUser.email) ||
+        "staff",
+      activatedAt: managedUser.activated_at ?? null,
+      createdAt: managedUser.created_at,
+      updatedAt: managedUser.updated_at,
+      lastSetupEmailSentAt: managedUser.last_setup_email_sent_at ?? null,
+      isBootstrapAdmin: managedUser.email === BOOTSTRAP_ADMIN_EMAIL,
+    }));
+
+    if (viewer.isBootstrapAdmin && !mapped.some((managedUser) => managedUser.email === BOOTSTRAP_ADMIN_EMAIL)) {
+      mapped.unshift({
+        id: String(viewer.authUserId),
+        email: viewer.email,
+        authUserId: String(viewer.authUserId),
+        status: "active",
+        role: "admin",
+        activatedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastSetupEmailSentAt: null,
+        isBootstrapAdmin: true,
+      });
+    }
+
+    return mapped;
+  },
+});
+
 export const listApplications = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const applications = (await ctx.db.query("applications").collect()) as any[];
     return sortByCreatedAtDesc(applications).map((application) => ({
       id: String(application._id),
@@ -59,6 +652,7 @@ export const updateApplicationStatus = mutation({
     reviewed_by: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     await ctx.db.patch(args.id, {
       status: args.status,
       reviewed_by: args.reviewed_by,
@@ -70,6 +664,7 @@ export const updateApplicationStatus = mutation({
 export const listDonations = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const donations = (await ctx.db.query("donations").collect()) as any[];
     return sortByCreatedAtDesc(donations).map((donation) => ({
       id: String(donation._id),
@@ -89,6 +684,7 @@ export const listDonations = query({
 export const listCompetitions = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const competitions = (await ctx.db.query("competitions").collect()) as any[];
     return sortByCreatedAtDesc(competitions).map((competition) => ({
       id: String(competition._id),
@@ -134,6 +730,7 @@ export const createCompetition = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const now = new Date().toISOString();
     return await ctx.db.insert("competitions", {
       title: args.title,
@@ -176,6 +773,7 @@ export const updateCompetition = mutation({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const existing = await ctx.db.get(args.id);
     const patch: Record<string, unknown> = {
       title: args.title,
@@ -226,6 +824,7 @@ export const setCompetitionStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     await ctx.db.patch(args.id, {
       status: args.status,
       is_active: args.status === "active",
@@ -239,6 +838,7 @@ export const deleteCompetition = mutation({
     id: v.id("competitions"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const competition = await ctx.db.get(args.id);
     const entries = (await ctx.db
       .query("competition_entries")
@@ -275,6 +875,7 @@ export const listCompetitionEntriesByCompetition = query({
     competitionId: v.id("competitions"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const entries = (await ctx.db
       .query("competition_entries")
       .withIndex("by_competition", (q) => q.eq("competition_id", args.competitionId))
@@ -309,6 +910,7 @@ export const updateCompetitionEntryStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     await ctx.db.patch(args.id, {
       status: args.status,
       updated_at: new Date().toISOString(),
@@ -319,6 +921,7 @@ export const updateCompetitionEntryStatus = mutation({
 export const listContactMessages = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const messages = (await ctx.db.query("contact_messages").collect()) as any[];
     return sortByCreatedAtDesc(messages).map((message) => ({
       id: String(message._id),
@@ -337,6 +940,7 @@ export const deleteContactMessage = mutation({
     id: v.id("contact_messages"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     await ctx.db.delete(args.id);
   },
 });
@@ -344,6 +948,7 @@ export const deleteContactMessage = mutation({
 export const listImpactMetrics = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const metrics = (await ctx.db.query("impact_metrics").collect()) as any[];
     return [...metrics]
       .sort((a, b) => {
@@ -373,6 +978,7 @@ export const createImpactMetric = mutation({
     year: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const now = new Date().toISOString();
     return await ctx.db.insert("impact_metrics", {
       metric_name: args.metric_name,
@@ -390,6 +996,7 @@ export const deleteImpactMetric = mutation({
     id: v.id("impact_metrics"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     await ctx.db.delete(args.id);
   },
 });
@@ -397,6 +1004,7 @@ export const deleteImpactMetric = mutation({
 export const listImpactStories = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const stories = (await ctx.db.query("impact_stories").collect()) as any[];
     return sortByCreatedAtDesc(stories).map((story) => ({
       id: String(story._id),
@@ -427,6 +1035,7 @@ export const createImpactStory = mutation({
     is_active: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const now = new Date().toISOString();
     return await ctx.db.insert("impact_stories", {
       title: args.title,
@@ -457,6 +1066,7 @@ export const updateImpactStory = mutation({
     is_active: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const existing = await ctx.db.get(args.id);
     const patch: Record<string, unknown> = {
       title: args.title,
@@ -489,6 +1099,7 @@ export const deleteImpactStory = mutation({
     id: v.id("impact_stories"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const story = await ctx.db.get(args.id);
     if (story?.image_storage_id) {
       await deleteStoredFile(ctx, story.image_storage_id);
@@ -500,6 +1111,7 @@ export const deleteImpactStory = mutation({
 export const listResources = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const resources = (await ctx.db.query("resources").collect()) as any[];
     return sortByCreatedAtDesc(resources).map((resource) => ({
       id: String(resource._id),
@@ -524,6 +1136,7 @@ export const createResource = mutation({
     file_storage_id: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const now = new Date().toISOString();
     return await ctx.db.insert("resources", {
       title: args.title,
@@ -549,6 +1162,7 @@ export const updateResource = mutation({
     file_storage_id: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const existing = await ctx.db.get(args.id);
     const patch: Record<string, unknown> = {
       title: args.title,
@@ -579,6 +1193,7 @@ export const deleteResource = mutation({
     id: v.id("resources"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const resource = await ctx.db.get(args.id);
     if (resource?.file_storage_id) {
       await deleteStoredFile(ctx, resource.file_storage_id);
@@ -590,6 +1205,7 @@ export const deleteResource = mutation({
 export const listTeams = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx as any);
     const teams = (await ctx.db.query("teams").collect()) as any[];
     return sortByCreatedAtDesc(teams).map((team) => ({
       id: String(team._id),
@@ -617,6 +1233,7 @@ export const createTeam = mutation({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const now = new Date().toISOString();
     return await ctx.db.insert("teams", {
       name: args.name,
@@ -644,6 +1261,7 @@ export const updateTeam = mutation({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const existing = await ctx.db.get(args.id);
     const patch: Record<string, unknown> = {
       name: args.name,
@@ -674,6 +1292,7 @@ export const deleteTeam = mutation({
     id: v.id("teams"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
     const team = await ctx.db.get(args.id);
     if (team?.image_storage_id) {
       await deleteStoredFile(ctx, team.image_storage_id);

@@ -1,11 +1,11 @@
 import { createRoot } from "react-dom/client";
-import { ConvexProvider } from "convex/react";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import App from "./App.tsx";
 import "./index.css";
 import { convex } from "./integrations/convex/client";
 
 createRoot(document.getElementById("root")!).render(
-  <ConvexProvider client={convex}>
+  <ConvexAuthProvider client={convex}>
     <App />
-  </ConvexProvider>,
+  </ConvexAuthProvider>,
 );

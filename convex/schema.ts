@@ -1,7 +1,10 @@
+import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  ...authTables,
+
   applications: defineTable({
     survivor_name: v.optional(v.string()),
     date_of_birth: v.optional(v.string()),
@@ -179,11 +182,35 @@ export default defineSchema({
     created_at: v.optional(v.string()),
   }).index("by_status", ["status"]).index("by_created_at", ["created_at"]),
 
+  managed_users: defineTable({
+    email: v.string(),
+    auth_user_id: v.optional(v.id("users")),
+    status: v.string(),
+    created_by_auth_user_id: v.optional(v.id("users")),
+    setup_token_hash: v.optional(v.string()),
+    setup_token_expires_at: v.optional(v.number()),
+    last_setup_email_sent_at: v.optional(v.string()),
+    activated_at: v.optional(v.string()),
+    created_at: v.string(),
+    updated_at: v.string(),
+  })
+    .index("by_email", ["email"])
+    .index("by_auth_user_id", ["auth_user_id"])
+    .index("by_status", ["status"])
+    .index("by_setup_token_hash", ["setup_token_hash"]),
+
   user_roles: defineTable({
     user_id: v.optional(v.string()),
+    auth_user_id: v.optional(v.id("users")),
+    email: v.optional(v.string()),
     role: v.string(),
     created_at: v.optional(v.string()),
-  }).index("by_user_id", ["user_id"]).index("by_role", ["role"]),
+    updated_at: v.optional(v.string()),
+  })
+    .index("by_user_id", ["user_id"])
+    .index("by_auth_user_id", ["auth_user_id"])
+    .index("by_email", ["email"])
+    .index("by_role", ["role"]),
 
   legacy_import_mappings: defineTable({
     source: v.string(),

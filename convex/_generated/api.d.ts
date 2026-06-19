@@ -9,6 +9,9 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as auth from "../auth.js";
+import type * as authEmail from "../authEmail.js";
+import type * as authHelpers from "../authHelpers.js";
 import type * as forms from "../forms.js";
 import type * as http from "../http.js";
 import type * as migrations from "../migrations.js";
@@ -25,6 +28,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  auth: typeof auth;
+  authEmail: typeof authEmail;
+  authHelpers: typeof authHelpers;
   forms: typeof forms;
   http: typeof http;
   migrations: typeof migrations;

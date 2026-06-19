@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -11,41 +13,64 @@ import CompetitionsTab from "@/components/admin/CompetitionsTab";
 import CompetitionEntriesTab from "@/components/admin/CompetitionEntriesTab";
 import MetricsTab from "@/components/admin/MetricsTab";
 import ContactSubmissionsTab from "@/components/admin/ContactSubmissionsTab";
-
 import TeamsTab from "@/components/admin/TeamsTab";
 import ImpactStoriesTab from "@/components/admin/ImpactStoriesTab";
 import ResourcesTab from "@/components/admin/ResourcesTab";
+import UsersTab from "@/components/admin/UsersTab";
+import { api } from "../../convex/_generated/api";
 
 const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminUserId, setAdminUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
+  const { signOut } = useAuthActions();
+  const adminApi = api as any;
+  const ensureViewerRecord = useMutation(adminApi.admin.ensureViewerRecord);
+  const adminSession = useQuery(adminApi.admin.getAdminSession) as
+    | {
+        email: string;
+        isAdmin: boolean;
+        isBootstrapAdmin: boolean;
+        authUserId: string;
+        reviewedByUserId: string;
+        status: string | null;
+        role: string | null;
+      }
+    | null
+    | undefined;
 
   useEffect(() => {
-    checkAdminStatus();
-  }, []);
+    if (!authLoading && isAuthenticated) {
+      void ensureViewerRecord({}).catch((error: Error) => {
+        toast({
+          title: "Session sync failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      });
+    }
+  }, [authLoading, ensureViewerRecord, isAuthenticated, toast]);
 
-  const checkAdminStatus = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
 
-    if (!user) {
+    if (!isAuthenticated) {
       navigate("/auth");
       return;
     }
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .single();
+    if (adminSession === undefined) {
+      return;
+    }
 
-    if (!roles) {
+    if (!adminSession || !adminSession.isAdmin) {
       toast({
-        title: "Access Denied",
-        description: "You don't have admin privileges.",
+        title: "Access denied",
+        description: "You do not have admin privileges.",
         variant: "destructive",
       });
       navigate("/");
@@ -53,17 +78,17 @@ const Admin = () => {
     }
 
     setIsAdmin(true);
-    setAdminUserId(user.id);
-    setLoading(false);
-  };
+    setAdminUserId(adminSession.reviewedByUserId);
+  }, [adminSession, authLoading, isAuthenticated, navigate, toast]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     setAdminUserId(null);
+    setIsAdmin(false);
     navigate("/");
   };
 
-  if (loading) {
+  if (authLoading || (isAuthenticated && adminSession === undefined)) {
     return (
       <div className="min-h-screen bg-navy-primary flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
@@ -93,17 +118,17 @@ const Admin = () => {
 
       <main className="container mx-auto p-6">
         <Tabs defaultValue="applications" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 bg-white h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-10 bg-white h-auto">
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="donors">Donors</TabsTrigger>
             <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <TabsTrigger value="entries">Entries</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
             <TabsTrigger value="metrics">Impact Metrics</TabsTrigger>
-
             <TabsTrigger value="teams">Teams</TabsTrigger>
             <TabsTrigger value="stories">Stories</TabsTrigger>
             <TabsTrigger value="resources">Resources</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
 
           <TabsContent value="applications">
@@ -140,6 +165,10 @@ const Admin = () => {
 
           <TabsContent value="resources">
             <ResourcesTab />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <UsersTab />
           </TabsContent>
         </Tabs>
       </main>

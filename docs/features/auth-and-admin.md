@@ -9,14 +9,39 @@ The auth and admin areas control privileged access and content management for th
 - `src/pages/Auth.tsx`
 - `src/pages/Admin.tsx`
 - `src/components/admin/`
-- `src/integrations/supabase/client.ts`
 - `src/integrations/convex/client.ts`
+- `convex/auth.ts`
+- `convex/admin.ts`
+- `convex/authHelpers.ts`
 
 ## Current Flow
 
-Authentication starts in the auth route and privileged access is enforced at the admin page. The admin route still checks the current user and confirms the `admin` role through Supabase before rendering the dashboard. Convex now carries the migrated admin business data, payments, and public/content flows, but it is not yet the auth source of truth.
+Authentication now runs through Convex Auth with email and password only. The `/auth` route handles:
 
-The admin dashboard itself should now be treated as a Convex-backed data surface with a Supabase-authenticated gate.
+- standard admin sign-in
+- one-time bootstrap admin initialization for the configured bootstrap email
+- emailed password setup and reset completion through tokenized setup links
+
+The `/admin` route waits for Convex Auth readiness, syncs the signed-in identity into Convex-managed admin records, and only renders the dashboard after Convex-side authorization confirms the caller is an admin.
+
+The admin dashboard data and the admin authorization gate are both now Convex-backed.
+
+## Authorization Model
+
+- Convex Auth owns the authenticated session and internal auth tables.
+- `managed_users` tracks app-level account state such as `invited`, `active`, and setup-link lifecycle.
+- `user_roles` remains the authorization surface for roles such as `admin`.
+- The configured bootstrap admin email is treated as a narrow first-account escape hatch and is then persisted into the same Convex-backed records as the rest of the admin system.
+
+## Admin User Management
+
+The dashboard now includes a `Users` tab for:
+
+- listing managed accounts
+- viewing role and activation state
+- emailing invite/setup links
+
+Admins do not assign raw passwords. Account activation and password reset both use emailed setup links handled by Convex actions.
 
 ## Architectural Notes
 
@@ -31,4 +56,4 @@ That split should be preserved because it keeps the route readable and limits th
 
 - `src/pages/AGENTS.md`
 - `src/components/admin/AGENTS.md`
-- `src/integrations/supabase/AGENTS.md`
+- `convex/AGENTS.md`

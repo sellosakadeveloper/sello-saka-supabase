@@ -30,4 +30,3 @@ If this feature grows significantly, it would be a candidate for extracting a mo
 - `src/pages/AGENTS.md`
 - `src/components/AGENTS.md`
 - `src/components/admin/AGENTS.md`
-- `src/integrations/supabase/AGENTS.md`

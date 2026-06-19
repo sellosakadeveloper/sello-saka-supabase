@@ -2,13 +2,11 @@
 
 ## Overview
 
-The frontend is in a staged migration from Supabase to Convex. Public reads, form submissions, admin CRUD, payment workflows, file uploads, and the live admin auth gate now use Convex.
+The live application runtime is now Convex-backed. Public reads, form submissions, admin CRUD, payment workflows, file uploads, and the admin auth gate all use Convex.
 
 ## Frontend Integration Boundaries
 
 - `src/integrations/convex/client.ts` exposes the shared Convex browser client.
-- `src/integrations/supabase/client.ts` remains as a legacy integration artifact while the broader migration cleanup phase is still in progress.
-- `src/integrations/supabase/types.ts` remains for legacy compatibility until Supabase decommissioning is complete.
 
 Pages and admin components import the shared client rather than recreating connection logic locally.
 
@@ -21,11 +19,11 @@ Pages and admin components import the shared client rather than recreating conne
 - `src/pages/Auth.tsx` and `src/pages/Admin.tsx` use Convex Auth and Convex-backed authorization queries and actions.
 - `src/components/admin/*.tsx` read and mutate admin domains through Convex, including managed-user invites.
 
-The current pattern is pragmatic and direct: data access often sits near the feature that uses it, rather than behind a separate repository layer. During migration, Convex is now the live runtime backend while Supabase remains in the repo as a legacy artifact until cleanup.
+The current pattern is pragmatic and direct: data access often sits near the feature that uses it, rather than behind a separate repository layer. Convex is the live runtime backend while Supabase remains in the repo only as a legacy project artifact until final cleanup.
 
 ## Backend Project Artifacts
 
-The root `convex/` directory owns the backend schema and functions for migrated data models, including auth, admin CRUD, payment workflows, and file uploads. The root `supabase/` directory still owns legacy project-side configuration, migrations, and scripts until the migration is fully decommissioned.
+The root `convex/` directory owns the backend schema and functions for the live data model, including auth, admin CRUD, payment workflows, and file uploads. The root `supabase/` directory still owns legacy project-side configuration, migrations, and scripts until the migration is fully decommissioned.
 
 ## Architectural Constraint
 
@@ -35,6 +33,5 @@ Any change that affects live backend behavior should be reflected in `convex/`. 
 
 - `src/integrations/AGENTS.md`
 - `src/integrations/convex/AGENTS.md`
-- `src/integrations/supabase/AGENTS.md`
 - `convex/AGENTS.md`
 - `supabase/AGENTS.md`

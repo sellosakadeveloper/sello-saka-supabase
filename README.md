@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# Sello Saka Foundation
 
 ## Project info
 
@@ -32,9 +32,11 @@ cd <YOUR_PROJECT_NAME>
 # Step 3: Install the necessary dependencies.
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Start the local app and Convex backend together.
 npm run dev
 ```
+
+`npm run dev` now starts both Vite and `convex dev`. The legacy frontend Supabase client has been removed from the live runtime path.
 
 **Edit a file directly in GitHub**
 
@@ -59,6 +61,7 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Convex
 
 ## How can I deploy this project?
 

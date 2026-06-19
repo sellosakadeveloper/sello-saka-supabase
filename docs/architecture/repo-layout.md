@@ -9,7 +9,7 @@ The repository is organized around the current project structure rather than a s
 - `src/`: frontend application code
 - `convex/`: Convex schema and server functions
 - `public/`: stable public-path assets
-- `supabase/`: legacy Supabase configuration, migrations, and edge functions that remain during migration, plus any temporary support for the still-legacy admin auth gate
+- `supabase/`: legacy Supabase configuration, migrations, and migration-support scripts that remain during decommissioning
 - `ticket_code/`: local markdown notes for the ticketing area
 - `docs/`: human-facing architecture and feature documentation
 
@@ -21,7 +21,6 @@ The repository is organized around the current project structure rather than a s
 - `src/components/admin/` contains admin dashboard tab content and admin-only feature logic.
 - `src/components/ui/` contains shared UI primitives and wrappers.
 - `src/integrations/convex/` contains the browser Convex client setup.
-- `src/integrations/supabase/` contains the legacy frontend Supabase client and generated types.
 - `src/assets/` contains images and brand assets imported by code.
 
 ## Why The Layout Matters

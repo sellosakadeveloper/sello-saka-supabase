@@ -2,11 +2,11 @@
 
 ## Overview
 
-The admin area is split between a route-level gatekeeper and tab-level feature components. The route is still Supabase-authenticated for now while the backend migration to Convex continues, but the tab data layer and file uploads have moved to Convex for the migrated domains.
+The admin area is split between a route-level gatekeeper and tab-level feature components. Both the auth gate and the tab data layer now run through Convex.
 
 ## Entry And Access Control
 
-`src/pages/Admin.tsx` is the admin entrypoint. It checks for an authenticated user, verifies the user has the `admin` role in `user_roles`, and then renders the dashboard tabs.
+`src/pages/Admin.tsx` is the admin entrypoint. It waits for Convex Auth readiness, verifies the caller has the `admin` role in Convex-backed records, and then renders the dashboard tabs.
 
 This page owns:
 
@@ -22,7 +22,7 @@ This separation keeps the admin page focused on composition while feature-specif
 
 ## Data Access Pattern
 
-Admin tabs now interact with Convex for business data and file uploads. The remaining Supabase calls in the admin subtree are limited to the auth gate in `src/pages/Admin.tsx`.
+Admin tabs and the admin auth gate now interact with Convex. Supabase is no longer part of the live admin runtime path.
 
 ## Architectural Constraint
 
@@ -32,4 +32,3 @@ Admin-only behavior should stay isolated from the public site where possible. Ge
 
 - `src/pages/AGENTS.md`
 - `src/components/admin/AGENTS.md`
-- `src/integrations/supabase/AGENTS.md`

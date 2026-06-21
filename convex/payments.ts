@@ -10,6 +10,7 @@ type PaymentRecord = {
   provider: PaymentProvider;
   status: string;
   purpose: PaymentPurpose;
+  purpose_context?: string | null;
   amount: number;
   currency: string;
   payer_name: string;
@@ -78,6 +79,7 @@ async function buildCompetitionSuccessPayload(
       month: "short",
       year: "numeric",
     }),
+    ticket_emailed: Boolean(entry.ticket_emailed),
   };
 }
 
@@ -132,9 +134,9 @@ async function finalizeVerifiedPaymentHelper(ctx: { db: any }, args: {
   const now = new Date().toISOString();
   await ctx.db.patch(paymentRecord._id, {
     status: "completed",
-    provider_payment_id: args.providerPaymentId ?? paymentRecord.provider_payment_id ?? null,
-    provider_status: args.providerStatus ?? paymentRecord.provider_status ?? null,
-    provider_payload: args.providerPayload ?? paymentRecord.provider_payload ?? null,
+    provider_payment_id: args.providerPaymentId ?? paymentRecord.provider_payment_id ?? undefined,
+    provider_status: args.providerStatus ?? paymentRecord.provider_status ?? undefined,
+    provider_payload: args.providerPayload ?? paymentRecord.provider_payload ?? undefined,
     verified_at: now,
     completed_at: now,
     updated_at: now,
@@ -238,6 +240,7 @@ async function finalizeVerifiedPaymentHelper(ctx: { db: any }, args: {
         month: "short",
         year: "numeric",
       }),
+      ticket_emailed: Boolean(entry?.ticket_emailed),
     },
     competitionEmail: {
       participantName: paymentRecord.payer_name,
@@ -280,9 +283,9 @@ async function recordGatewayStatusHelper(ctx: { db: any }, args: {
   const now = new Date().toISOString();
   await ctx.db.patch(paymentRecord._id, {
     status: args.status,
-    provider_payment_id: args.providerPaymentId ?? paymentRecord.provider_payment_id ?? null,
-    provider_status: args.providerStatus ?? paymentRecord.provider_status ?? null,
-    provider_payload: args.providerPayload ?? paymentRecord.provider_payload ?? null,
+    provider_payment_id: args.providerPaymentId ?? paymentRecord.provider_payment_id ?? undefined,
+    provider_status: args.providerStatus ?? paymentRecord.provider_status ?? undefined,
+    provider_payload: args.providerPayload ?? paymentRecord.provider_payload ?? undefined,
     verified_at: now,
     updated_at: now,
   });
@@ -332,12 +335,15 @@ export const initializePaymentRecord = internalMutation({
     let donationId: string | null = null;
     let competitionEntryId: string | null = null;
     let linkedCompetitionId: string | null = null;
+    let purposeContext: string | null = null;
     let itemName = "Donation";
 
     if (args.purpose === "donation") {
       if (!paymentAmount || paymentAmount <= 0) {
         throw new Error("Invalid donation amount");
       }
+
+      purposeContext = args.donation_type || "once";
 
       donationId = await ctx.db.insert("donations", {
         name: args.name,
@@ -374,6 +380,7 @@ export const initializePaymentRecord = internalMutation({
         created_at: new Date().toISOString(),
       });
       linkedCompetitionId = String(args.competition_id);
+      purposeContext = linkedCompetitionId;
     }
 
     await ctx.db.insert("payment_records", {
@@ -381,6 +388,7 @@ export const initializePaymentRecord = internalMutation({
       provider: args.provider,
       status: "pending",
       purpose: args.purpose,
+      purpose_context: purposeContext || undefined,
       amount: paymentAmount,
       currency: "ZAR",
       payer_name: args.name,
@@ -410,6 +418,7 @@ export const initializePaymentRecord = internalMutation({
       metadata: {
         payment_reference: paymentReference,
         purpose: args.purpose,
+        purpose_context: purposeContext,
         competition_id: linkedCompetitionId,
         name: args.name,
         phone: args.phone,

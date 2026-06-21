@@ -43,6 +43,8 @@ The dashboard now includes a `Users` tab for:
 
 Admins do not assign raw passwords. Account activation and password reset both use emailed setup links handled by Convex actions.
 
+Auth emails are sent through Resend from the configured `AUTH_EMAIL_FROM` address. Production setups should point this at a verified sender on the foundation's Resend-managed domain, for example `noreply@mail.sellosakafoundation.org`.
+
 ## Architectural Notes
 
 The most important boundary here is between:

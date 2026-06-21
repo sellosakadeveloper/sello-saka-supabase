@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Header from "@/components/Header";
 import { Loader2, CheckCircle2 } from "lucide-react";
@@ -35,6 +35,8 @@ export function PayFastReturn() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<PaymentViewState>("verifying");
   const [message, setMessage] = useState("Please wait while we confirm your payment.");
+  const [sandboxReconcileAttempted, setSandboxReconcileAttempted] = useState(false);
+  const confirmSandboxPayfastReturn = useAction(api.paymentsNode.confirmSandboxPayfastReturn);
 
   const paymentReference = searchParams.get("payment_reference");
   const wasCancelled = searchParams.get("cancelled") === "1";
@@ -96,6 +98,51 @@ export function PayFastReturn() {
     setStatus("pending");
     setMessage("We are still waiting for gateway confirmation. If you completed payment, it should reflect shortly.");
   }, [navigate, paymentReference, paymentStatus, wasCancelled]);
+
+  useEffect(() => {
+    if (
+      !paymentReference ||
+      sandboxReconcileAttempted ||
+      paymentStatus === undefined ||
+      paymentStatus === null ||
+      paymentStatus.status !== "pending" ||
+      paymentStatus.provider !== "payfast" ||
+      wasCancelled
+    ) {
+      return;
+    }
+
+    setSandboxReconcileAttempted(true);
+
+    void (async () => {
+      try {
+        const finalized = await confirmSandboxPayfastReturn({
+          paymentReference,
+        });
+
+        if (finalized?.purpose === "competition_entry" && finalized?.competition_success) {
+          navigate("/competition/success", {
+            state: finalized.competition_success,
+          });
+          return;
+        }
+
+        if (finalized?.success) {
+          setStatus("success");
+          setMessage("Your donation payment has been confirmed.");
+        }
+      } catch (error) {
+        console.error("Sandbox PayFast reconciliation failed:", error);
+      }
+    })();
+  }, [
+    confirmSandboxPayfastReturn,
+    navigate,
+    paymentReference,
+    paymentStatus,
+    sandboxReconcileAttempted,
+    wasCancelled,
+  ]);
 
   const statusTitle = useMemo(() => {
     switch (status) {

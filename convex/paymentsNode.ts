@@ -178,16 +178,42 @@ function getConvexSiteUrl(): string {
   return siteUrl.replace(/\/$/, "");
 }
 
+function normalizeEnvValue(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
-  return value;
+  return normalizeEnvValue(value);
+}
+
+function getOptionalEnv(name: string): string {
+  const value = process.env[name];
+  return value ? normalizeEnvValue(value) : "";
+}
+
+function getTicketFromAddress(): string {
+  return (
+    getOptionalEnv("TICKETS_EMAIL_FROM") ||
+    getOptionalEnv("AUTH_EMAIL_FROM") ||
+    "Sello Saka Foundation Tickets <tickets@mail.sellosakafoundation.org>"
+  );
 }
 
 function isPayFastSandbox(): boolean {
-  return (process.env.PAYFAST_SANDBOX || "true").toLowerCase() === "true";
+  return getOptionalEnv("PAYFAST_SANDBOX")
+    ? getOptionalEnv("PAYFAST_SANDBOX").toLowerCase() === "true"
+    : true;
 }
 
 function getPayFastBaseUrl(): string {
@@ -196,6 +222,24 @@ function getPayFastBaseUrl(): string {
 
 function getPayFastProcessUrl(): string {
   return `${getPayFastBaseUrl()}/eng/process`;
+}
+
+function getPayFastValidateUrl(): string {
+  return `${getPayFastBaseUrl()}/eng/query/validate`;
+}
+
+const PAYFAST_VALID_HOSTS = [
+  "www.payfast.co.za",
+  "sandbox.payfast.co.za",
+  "w1w.payfast.co.za",
+  "w2w.payfast.co.za",
+];
+
+class PayFastValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PayFastValidationError";
+  }
 }
 
 function buildPayFastQueryString(data: Record<string, string>, passphrase?: string): string {
@@ -230,6 +274,174 @@ function mapPayFastStatus(paymentStatus?: string): string {
       return "cancelled";
     default:
       return "processing";
+  }
+}
+
+function normalizeIpAddress(value: string): string {
+  const normalized = value.trim();
+  return normalized.startsWith("::ffff:") ? normalized.slice(7) : normalized;
+}
+
+function getForwardedRequestIp(request: Request): string | null {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return normalizeIpAddress(forwardedFor.split(",")[0] || "");
+  }
+
+  const fallbackHeaders = ["x-real-ip", "cf-connecting-ip", "fly-client-ip"];
+  for (const header of fallbackHeaders) {
+    const value = request.headers.get(header);
+    if (value) {
+      return normalizeIpAddress(value);
+    }
+  }
+
+  return null;
+}
+
+async function resolvePayFastHostIps(hostname: string): Promise<string[]> {
+  const recordTypes = ["A", "AAAA"];
+  const responses = await Promise.all(
+    recordTypes.map(async (recordType) => {
+      const response = await fetch(
+        `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=${recordType}`,
+      );
+      if (!response.ok) {
+        throw new Error(`DNS lookup failed for ${hostname} (${recordType})`);
+      }
+      return response.json();
+    }),
+  );
+
+  return responses.flatMap((payload) =>
+    Array.isArray(payload.Answer)
+      ? payload.Answer.map((answer: { data?: string }) => answer.data).filter(
+          (value: string | undefined): value is string => typeof value === "string" && value.length > 0,
+        )
+      : [],
+  );
+}
+
+async function warnIfPayFastSourceUnrecognized(request: Request): Promise<void> {
+  const requestIp = getForwardedRequestIp(request);
+  if (!requestIp) {
+    console.warn("PayFast webhook arrived without a forwarded client IP header");
+    return;
+  }
+
+  const resolvedIpSets = await Promise.allSettled(PAYFAST_VALID_HOSTS.map((hostname) => resolvePayFastHostIps(hostname)));
+  const allowedIps = new Set<string>();
+
+  for (const result of resolvedIpSets) {
+    if (result.status === "fulfilled") {
+      for (const ip of result.value) {
+        allowedIps.add(normalizeIpAddress(ip));
+      }
+    }
+  }
+
+  if (allowedIps.size === 0) {
+    console.warn("Unable to resolve PayFast validation host IP addresses; continuing with server confirmation");
+    return;
+  }
+
+  if (!allowedIps.has(requestIp)) {
+    console.warn(`PayFast webhook source IP ${requestIp} is not in the resolved PayFast host list; continuing with server confirmation`);
+  }
+}
+
+async function assertPayFastServerConfirmation(payload: Record<string, string>): Promise<void> {
+  const response = await fetch(getPayFastValidateUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: buildPayFastQueryString(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`PayFast server confirmation failed with status ${response.status}`);
+  }
+
+  const confirmation = (await response.text()).trim().toUpperCase();
+  if (confirmation !== "VALID") {
+    throw new PayFastValidationError(`PayFast server confirmation returned ${confirmation || "EMPTY"}`);
+  }
+}
+
+function toFixedAmount(value?: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return parsed.toFixed(2);
+}
+
+function buildPayFastFormFields(initialized: {
+  return_url?: string;
+  cancel_url?: string;
+  payer_name: string;
+  payer_email: string;
+  payer_phone?: string;
+  payment_reference: string;
+  amount: number;
+  item_name: string;
+  purpose: string;
+  metadata?: {
+    purpose_context?: string | null;
+  };
+}, notifyUrl: string): Record<string, string> {
+  const merchantId = getRequiredEnv("PAYFAST_MERCHANT_ID");
+  const merchantKey = getRequiredEnv("PAYFAST_MERCHANT_KEY");
+
+  return {
+    merchant_id: merchantId,
+    merchant_key: merchantKey,
+    return_url: initialized.return_url || "",
+    cancel_url: initialized.cancel_url || "",
+    notify_url: notifyUrl,
+    name_first: initialized.payer_name,
+    email_address: initialized.payer_email,
+    m_payment_id: initialized.payment_reference,
+    amount: Number(initialized.amount).toFixed(2),
+    item_name: initialized.item_name,
+    custom_str1: initialized.purpose,
+    custom_str2: initialized.metadata?.purpose_context || "",
+    custom_str3: initialized.payer_phone || "",
+  };
+}
+
+function assertPayFastPaymentContext(
+  payload: Record<string, string>,
+  paymentRecord: {
+    provider?: string;
+    purpose?: string;
+    purpose_context?: string | null;
+    amount?: number;
+  },
+): void {
+  if (paymentRecord.provider !== "payfast") {
+    throw new PayFastValidationError("Payment record provider does not match PayFast");
+  }
+
+  if ((payload.custom_str1 || "") !== (paymentRecord.purpose || "")) {
+    throw new PayFastValidationError("Payment purpose mismatch");
+  }
+
+  const expectedContext = paymentRecord.purpose_context;
+  if (typeof expectedContext === "string" && (payload.custom_str2 || "") !== expectedContext) {
+    throw new PayFastValidationError("Payment context mismatch");
+  }
+
+  const expectedAmount = Number(paymentRecord.amount || 0).toFixed(2);
+  const grossAmount = toFixedAmount(payload.amount_gross) || toFixedAmount(payload.amount);
+  if (grossAmount && grossAmount !== expectedAmount) {
+    throw new PayFastValidationError("Payment amount mismatch");
   }
 }
 
@@ -272,7 +484,7 @@ async function sendCompetitionTicketEmail(details: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Sello Saka Foundation Tickets <onboarding@resend.dev>",
+      from: getTicketFromAddress(),
       to: [details.email],
       subject: `Your Competition Ticket - ${details.ticketNumber}`,
       html,
@@ -285,6 +497,32 @@ async function sendCompetitionTicketEmail(details: {
   }
 
   return true;
+}
+
+async function maybeSendCompetitionTicketEmail(
+  ctx: any,
+  finalized: any,
+): Promise<any> {
+  if (finalized.purpose !== "competition_entry" || !finalized.competitionEmail) {
+    return finalized;
+  }
+
+  const emailSent = await sendCompetitionTicketEmail(finalized.competitionEmail);
+  if (emailSent && finalized.competitionEmail.entryId) {
+    await ctx.runMutation(internal.payments.markTicketEmailed, {
+      entryId: finalized.competitionEmail.entryId,
+    });
+  }
+
+  return {
+    ...finalized,
+    competition_success: finalized.competition_success
+      ? {
+          ...finalized.competition_success,
+          ticket_emailed: Boolean(emailSent),
+        }
+      : finalized.competition_success,
+  };
 }
 
 export const createPayment = action({
@@ -303,26 +541,9 @@ export const createPayment = action({
     const initialized: any = await ctx.runMutation(internal.payments.initializePaymentRecord, args);
 
     if (args.provider === "payfast") {
-      const merchantId = getRequiredEnv("PAYFAST_MERCHANT_ID");
-      const merchantKey = getRequiredEnv("PAYFAST_MERCHANT_KEY");
-      const passphrase = process.env.PAYFAST_PASSPHRASE || "";
+      const passphrase = getOptionalEnv("PAYFAST_PASSPHRASE");
       const notifyUrl = `${getConvexSiteUrl()}/payfast-webhook`;
-
-      const formFields: Record<string, string> = {
-        merchant_id: merchantId,
-        merchant_key: merchantKey,
-        return_url: initialized.return_url || "",
-        cancel_url: initialized.cancel_url || "",
-        notify_url: notifyUrl,
-        name_first: initialized.payer_name,
-        email_address: initialized.payer_email,
-        m_payment_id: initialized.payment_reference,
-        amount: Number(initialized.amount).toFixed(2),
-        item_name: initialized.item_name,
-        custom_str1: initialized.purpose,
-        custom_str2: initialized.metadata?.competition_id || "",
-        custom_str3: initialized.payer_phone || "",
-      };
+      const formFields = buildPayFastFormFields(initialized, notifyUrl);
 
       return {
         provider: initialized.provider,
@@ -387,16 +608,39 @@ export const verifyPayment = action({
       amount: Number(paymentData.amount) / 100,
     });
 
-    if (finalized.purpose === "competition_entry" && finalized.competition_success && finalized.competitionEmail) {
-      await sendCompetitionTicketEmail(finalized.competitionEmail);
-      if (finalized.competitionEmail.entryId) {
-        await ctx.runMutation(internal.payments.markTicketEmailed, {
-          entryId: finalized.competitionEmail.entryId,
-        });
-      }
+    return await maybeSendCompetitionTicketEmail(ctx, finalized);
+  },
+});
+
+export const confirmSandboxPayfastReturn = action({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!isPayFastSandbox()) {
+      throw new Error("Sandbox PayFast confirmation is disabled outside sandbox mode");
     }
 
-    return finalized;
+    const paymentRecord: any = await ctx.runQuery(internal.payments.getPaymentRecordByReference, {
+      paymentReference: args.paymentReference,
+    });
+
+    if (paymentRecord.provider !== "payfast") {
+      throw new Error("Payment is not a PayFast payment");
+    }
+
+    const finalized: any = await ctx.runMutation(internal.payments.finalizeVerifiedPayment, {
+      paymentReference: args.paymentReference,
+      provider: "payfast",
+      providerStatus: "sandbox_return_confirmed",
+      providerPayload: {
+        source: "sandbox_return_confirmed",
+        confirmedAt: new Date().toISOString(),
+      },
+      amount: Number(paymentRecord.amount),
+    });
+
+    return await maybeSendCompetitionTicketEmail(ctx, finalized);
   },
 });
 
@@ -430,21 +674,21 @@ export const payfastWebhook = httpAction(async (ctx, request) => {
       paymentReference,
     });
 
-    const expectedSignature = generatePayFastSignature(payload, process.env.PAYFAST_PASSPHRASE || "");
+    const expectedSignature = generatePayFastSignature(payload, getOptionalEnv("PAYFAST_PASSPHRASE"));
     if (expectedSignature !== signature) {
-      throw new Error("Invalid PayFast signature");
+      throw new PayFastValidationError("Invalid PayFast signature");
     }
 
     if (payload.merchant_id !== process.env.PAYFAST_MERCHANT_ID) {
-      throw new Error("Merchant ID mismatch");
+      throw new PayFastValidationError("Merchant ID mismatch");
     }
 
-    const amountGross = Number(payload.amount_gross || payload.amount_fee || payload.amount || 0);
-    if (amountGross && amountGross.toFixed(2) !== Number(paymentRecord.amount).toFixed(2)) {
-      throw new Error("Payment amount mismatch");
-    }
+    assertPayFastPaymentContext(payload, paymentRecord);
+    await warnIfPayFastSourceUnrecognized(request);
+    await assertPayFastServerConfirmation(payload);
 
     const mappedStatus = mapPayFastStatus(payload.payment_status);
+    const amountGross = Number(payload.amount_gross || payload.amount || 0);
     if (mappedStatus !== "completed") {
       await ctx.runMutation(internal.payments.recordGatewayStatus, {
         paymentReference,
@@ -466,18 +710,14 @@ export const payfastWebhook = httpAction(async (ctx, request) => {
       amount: amountGross || undefined,
     });
 
-    if (finalized.purpose === "competition_entry" && finalized.competitionEmail) {
-      await sendCompetitionTicketEmail(finalized.competitionEmail);
-      if (finalized.competitionEmail.entryId) {
-        await ctx.runMutation(internal.payments.markTicketEmailed, {
-          entryId: finalized.competitionEmail.entryId,
-        });
-      }
-    }
+    await maybeSendCompetitionTicketEmail(ctx, finalized);
 
     return new Response("OK", { status: 200 });
   } catch (error) {
     console.error("PayFast webhook error:", error);
+    if (error instanceof PayFastValidationError) {
+      return new Response("OK", { status: 200 });
+    }
     return new Response("Internal Server Error", { status: 500 });
   }
 });
@@ -521,14 +761,7 @@ export const paystackWebhook = httpAction(async (ctx, request) => {
       amount: Number(payload.data.amount) / 100,
     });
 
-    if (finalized.purpose === "competition_entry" && finalized.competitionEmail) {
-      await sendCompetitionTicketEmail(finalized.competitionEmail);
-      if (finalized.competitionEmail.entryId) {
-        await ctx.runMutation(internal.payments.markTicketEmailed, {
-          entryId: finalized.competitionEmail.entryId,
-        });
-      }
-    }
+    await maybeSendCompetitionTicketEmail(ctx, finalized);
 
     return new Response("OK", { status: 200 });
   } catch (error) {

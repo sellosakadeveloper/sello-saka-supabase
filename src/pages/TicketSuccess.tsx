@@ -14,6 +14,7 @@ interface TicketSuccessState {
     competition_title: string;
     prize: string;
     draw_date: string;
+    ticket_emailed?: boolean;
 }
 
 const TicketSuccess = () => {
@@ -108,15 +109,27 @@ const TicketSuccess = () => {
                         </FadeIn>
 
                         <FadeIn direction="up" delay={0.4}>
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
+                            <div className={`${state.ticket_emailed ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"} border rounded-xl p-6 mb-8`}>
                                 <div className="flex gap-4">
-                                    <Mail className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                                    <Mail className={`w-6 h-6 flex-shrink-0 mt-0.5 ${state.ticket_emailed ? "text-green-600" : "text-amber-600"}`} />
                                     <div>
-                                        <p className="font-semibold text-green-800 mb-1">Ticket Emailed!</p>
-                                        <p className="text-green-700 text-sm">
-                                            A copy of your digital ticket has been sent to <strong>{state.email}</strong>.
-                                            Please check your inbox (and spam folder) for the ticket.
-                                        </p>
+                                        {state.ticket_emailed ? (
+                                            <>
+                                                <p className="font-semibold text-green-800 mb-1">Ticket Emailed!</p>
+                                                <p className="text-green-700 text-sm">
+                                                    A copy of your digital ticket has been sent to <strong>{state.email}</strong>.
+                                                    Please check your inbox and spam folder for the ticket.
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="font-semibold text-amber-800 mb-1">Email Not Confirmed</p>
+                                                <p className="text-amber-700 text-sm">
+                                                    Your ticket is confirmed, but email delivery was not confirmed for <strong>{state.email}</strong>.
+                                                    Use the ticket number on this page and verify the Resend sender setup before relying on email delivery.
+                                                </p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

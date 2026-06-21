@@ -17,7 +17,7 @@ function getResendApiKey(): string {
 }
 
 function getFromAddress(): string {
-  return process.env.AUTH_EMAIL_FROM || "Sello Saka Foundation <onboarding@resend.dev>";
+  return process.env.AUTH_EMAIL_FROM || "Sello Saka Foundation <noreply@mail.sellosakafoundation.org>";
 }
 
 export async function sendAccountSetupEmail(args: {

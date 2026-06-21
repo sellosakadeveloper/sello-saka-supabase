@@ -129,6 +129,7 @@ export default defineSchema({
     provider: v.string(),
     status: v.string(),
     purpose: v.string(),
+    purpose_context: v.optional(v.string()),
     amount: v.number(),
     currency: v.string(),
     payer_name: v.string(),

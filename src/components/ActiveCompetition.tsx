@@ -109,7 +109,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
             });
 
             if (data.success && data.competition_success) {
-                navigate("/competition/success", {
+                navigate(`/competition/success?payment_reference=${encodeURIComponent(data.competition_success.reference)}`, {
                     state: data.competition_success,
                 });
                 return;

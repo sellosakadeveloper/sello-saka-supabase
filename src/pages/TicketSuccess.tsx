@@ -1,7 +1,10 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useAction, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, Trophy, Mail, ArrowLeft, TicketIcon } from "lucide-react";
+import { CheckCircle2, Trophy, Mail, ArrowLeft, TicketIcon, Download } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { FadeIn } from "@/components/animations/FadeIn";
@@ -11,18 +14,64 @@ interface TicketSuccessState {
     reference: string;
     participant_name: string;
     email: string;
+    participant_phone: string;
     competition_title: string;
     prize: string;
+    entry_price: number;
+    competition_period: string;
     draw_date: string;
+    entry_date: string;
+    ticket_download_url: string | null;
     ticket_emailed?: boolean;
 }
+
+type PaymentStatusResult =
+    | {
+          payment_reference: string;
+          status: string;
+          purpose: string;
+          provider: string;
+          provider_status: string | null;
+          completed_at: string | null;
+          competition_success: TicketSuccessState | null;
+      }
+    | null
+    | undefined;
 
 const TicketSuccess = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const state = location.state as TicketSuccessState | null;
+    const [searchParams] = useSearchParams();
+    const paymentReference = searchParams.get("payment_reference");
+    const locationState = location.state as TicketSuccessState | null;
+    const [downloadUrl, setDownloadUrl] = useState<string | null>(locationState?.ticket_download_url ?? null);
+    const paymentStatus = useQuery(
+        api.payments.getPaymentStatus,
+        paymentReference ? { paymentReference } : "skip",
+    ) as PaymentStatusResult;
+    const ensureCompetitionTicketDownload = useAction(api.paymentsNode.ensureCompetitionTicketDownload);
+    const state = locationState ?? paymentStatus?.competition_success ?? null;
 
-    if (!state) {
+    useEffect(() => {
+        setDownloadUrl(locationState?.ticket_download_url ?? paymentStatus?.competition_success?.ticket_download_url ?? null);
+    }, [locationState?.ticket_download_url, paymentStatus?.competition_success?.ticket_download_url]);
+
+    useEffect(() => {
+        if (!paymentReference) {
+            return;
+        }
+
+        void (async () => {
+            try {
+                const result = await ensureCompetitionTicketDownload({ paymentReference });
+                setDownloadUrl(result.ticketDownloadUrl ?? null);
+            } catch (error) {
+                console.error("Failed to refresh ticket download URL:", error);
+            }
+        })();
+    }, [ensureCompetitionTicketDownload, paymentReference]);
+
+    if (!state && paymentStatus !== undefined) {
         return (
             <div className="min-h-screen bg-white">
                 <Header />
@@ -37,6 +86,21 @@ const TicketSuccess = () => {
                     >
                         Go to Competition
                     </Button>
+                </div>
+                <Footer />
+            </div>
+        );
+    }
+
+    if (!state) {
+        return (
+            <div className="min-h-screen bg-white">
+                <Header />
+                <div className="flex flex-col justify-center items-center min-h-[60vh] text-center px-4">
+                    <h2 className="text-3xl font-bold text-navy-primary mb-4">Loading Ticket</h2>
+                    <p className="text-gray-600 max-w-md mb-8">
+                        We are fetching your ticket details.
+                    </p>
                 </div>
                 <Footer />
             </div>
@@ -93,12 +157,28 @@ const TicketSuccess = () => {
                                         <span className="font-semibold text-navy-primary">{state.competition_title}</span>
                                     </div>
                                     <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                                        <span className="text-gray-500 text-sm">Entry Price</span>
+                                        <span className="font-semibold text-navy-primary">R{Number(state.entry_price).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                                        <span className="text-gray-500 text-sm">Competition Period</span>
+                                        <span className="font-semibold text-navy-primary text-right">{state.competition_period}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                                        <span className="text-gray-500 text-sm">Entry Day</span>
+                                        <span className="font-semibold text-navy-primary">{state.entry_date}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
                                         <span className="text-gray-500 text-sm">Prize</span>
                                         <span className="font-semibold text-navy-primary">{state.prize}</span>
                                     </div>
                                     <div className="flex justify-between items-center py-3 border-b border-gray-100">
                                         <span className="text-gray-500 text-sm">Draw Date</span>
                                         <span className="font-semibold text-navy-primary">{state.draw_date}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                                        <span className="text-gray-500 text-sm">Phone</span>
+                                        <span className="font-semibold text-navy-primary">{state.participant_phone || "-"}</span>
                                     </div>
                                     <div className="flex justify-between items-center py-3">
                                         <span className="text-gray-500 text-sm">Reference</span>
@@ -137,6 +217,17 @@ const TicketSuccess = () => {
 
                         <FadeIn direction="up" delay={0.6}>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                {downloadUrl ? (
+                                    <Button
+                                        asChild
+                                        className="bg-navy-primary hover:bg-navy-800 text-white font-bold px-8 py-6 h-auto text-lg"
+                                    >
+                                        <a href={downloadUrl} target="_blank" rel="noreferrer">
+                                            <Download className="w-5 h-5 mr-2" />
+                                            Download Ticket PDF
+                                        </a>
+                                    </Button>
+                                ) : null}
                                 <Button
                                     onClick={() => navigate("/competition")}
                                     className="bg-gold-600 hover:bg-gold-500 text-navy-primary font-bold px-8 py-6 h-auto text-lg"

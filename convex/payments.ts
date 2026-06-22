@@ -1,11 +1,12 @@
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 type PaymentPurpose = "donation" | "competition_entry";
 type PaymentProvider = "payfast" | "paystack";
 
 type PaymentRecord = {
-  _id: string;
+  _id: Id<"payment_records">;
   payment_reference: string;
   provider: PaymentProvider;
   status: string;
@@ -16,9 +17,9 @@ type PaymentRecord = {
   payer_name: string;
   payer_email: string;
   payer_phone?: string | null;
-  donation_id?: string | null;
-  competition_entry_id?: string | null;
-  competition_id?: string | null;
+  donation_id?: Id<"donations"> | null;
+  competition_entry_id?: Id<"competition_entries"> | null;
+  competition_id?: Id<"competitions"> | null;
   provider_payment_id?: string | null;
   provider_status?: string | null;
   provider_payload?: unknown;
@@ -50,7 +51,7 @@ async function getPaymentRecordByReferenceHelper(ctx: { db: any }, paymentRefere
 }
 
 async function buildCompetitionSuccessPayload(
-  ctx: { db: any },
+  ctx: { db: any; storage: { getUrl: (storageId: Id<"_storage">) => Promise<string | null> } },
   paymentRecord: PaymentRecord,
 ) {
   if (!paymentRecord.competition_entry_id || !paymentRecord.competition_id) {
@@ -66,19 +67,42 @@ async function buildCompetitionSuccessPayload(
 
   const drawDate = new Date(competition.end_date);
   drawDate.setDate(drawDate.getDate() + 1);
+  const startDate = new Date(competition.start_date);
+  const endDate = new Date(competition.end_date);
+  const entryDate = new Date(entry.created_at || paymentRecord.completed_at || Date.now());
+  const ticketDownloadUrl = entry.ticket_pdf_storage_id
+    ? await ctx.storage.getUrl(entry.ticket_pdf_storage_id as Id<"_storage">)
+    : null;
 
   return {
     ticket_number: entry.ticket_number,
     reference: paymentRecord.payment_reference,
     participant_name: paymentRecord.payer_name,
     email: paymentRecord.payer_email,
+    participant_phone: paymentRecord.payer_phone || "",
     competition_title: competition.title,
     prize: competition.prize || competition.title,
+    entry_price: Number(competition.ticket_price ?? competition.entry_fee ?? paymentRecord.amount ?? 0),
+    competition_period: `${startDate.toLocaleDateString("en-ZA", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })} - ${endDate.toLocaleDateString("en-ZA", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })}`,
     draw_date: drawDate.toLocaleDateString("en-ZA", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     }),
+    entry_date: entryDate.toLocaleDateString("en-ZA", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+    ticket_download_url: ticketDownloadUrl,
     ticket_emailed: Boolean(entry.ticket_emailed),
   };
 }
@@ -104,7 +128,7 @@ async function generateTicketNumber(ctx: { db: any }): Promise<string> {
   return `${prefix}${String(highest + 1).padStart(6, "0")}`;
 }
 
-async function finalizeVerifiedPaymentHelper(ctx: { db: any }, args: {
+async function finalizeVerifiedPaymentHelper(ctx: { db: any; storage: { getUrl: (storageId: Id<"_storage">) => Promise<string | null> } }, args: {
   paymentReference: string;
   provider: PaymentProvider;
   providerPaymentId?: string;
@@ -233,13 +257,22 @@ async function finalizeVerifiedPaymentHelper(ctx: { db: any }, args: {
       reference: paymentRecord.payment_reference,
       participant_name: paymentRecord.payer_name,
       email: paymentRecord.payer_email,
+      participant_phone: paymentRecord.payer_phone || "",
       competition_title: competition.title,
       prize: competition.prize || competition.title,
+      entry_price: Number(competition.ticket_price || competition.entry_fee || paymentRecord.amount),
+      competition_period: competitionPeriod,
       draw_date: drawDate.toLocaleDateString("en-ZA", {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }),
+      entry_date: new Date(entry?.created_at || now).toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      ticket_download_url: null,
       ticket_emailed: Boolean(entry?.ticket_emailed),
     },
     competitionEmail: {
@@ -252,12 +285,31 @@ async function finalizeVerifiedPaymentHelper(ctx: { db: any }, args: {
       prize: competition.prize || competition.title,
       entryPrice: competition.ticket_price || competition.entry_fee || paymentRecord.amount,
       competitionPeriod,
+      competitionStartDate: startDate.toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      competitionEndDate: new Date(competition.end_date).toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
       drawDate: drawDate.toLocaleDateString("en-ZA", {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }),
-      entryId: entryId ? String(entryId) : null,
+      entryDate: new Date(entry?.created_at || now).toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      supportLine: competition.subtitle || "Support childhood cancer survivors",
+      websiteUrl: "www.sellosakafoundation.org",
+      foundationEmail: "sellosaka.care@gmail.com",
+      entryId,
+      ticketPdfStorageId: entry?.ticket_pdf_storage_id ?? null,
     },
   };
 }
@@ -497,11 +549,98 @@ export const markTicketEmailed = internalMutation({
   },
 });
 
+export const attachTicketPdf = internalMutation({
+  args: {
+    entryId: v.id("competition_entries"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.entryId, {
+      ticket_pdf_storage_id: args.storageId,
+      updated_at: new Date().toISOString(),
+    });
+  },
+});
+
 export const getPaymentRecordByReference = internalQuery({
   args: {
     paymentReference: v.string(),
   },
   handler: async (ctx, args) => {
     return await getPaymentRecordByReferenceHelper(ctx, args.paymentReference);
+  },
+});
+
+export const getCompetitionTicketEmailData = internalQuery({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const paymentRecord = await getPaymentRecordByReferenceHelper(ctx, args.paymentReference);
+    if (
+      paymentRecord.purpose !== "competition_entry" ||
+      paymentRecord.status !== "completed" ||
+      !paymentRecord.competition_entry_id ||
+      !paymentRecord.competition_id
+    ) {
+      return null;
+    }
+
+    const entry = await ctx.db.get(paymentRecord.competition_entry_id);
+    const competition = await ctx.db.get(paymentRecord.competition_id);
+    if (!entry || !competition || !entry.ticket_number) {
+      return null;
+    }
+
+    const drawDate = new Date(competition.end_date);
+    drawDate.setDate(drawDate.getDate() + 1);
+
+    const startDate = new Date(competition.start_date);
+    const endDate = new Date(competition.end_date);
+
+    return {
+      participantName: paymentRecord.payer_name,
+      participantPhone: paymentRecord.payer_phone || "",
+      email: paymentRecord.payer_email,
+      ticketNumber: entry.ticket_number,
+      paymentReference: paymentRecord.payment_reference,
+      competitionTitle: competition.title,
+      prize: competition.prize || competition.title,
+      entryPrice: Number(competition.ticket_price || competition.entry_fee || paymentRecord.amount),
+      competitionPeriod: `${startDate.toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })} - ${endDate.toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })}`,
+      competitionStartDate: startDate.toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      competitionEndDate: endDate.toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      drawDate: drawDate.toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      entryDate: new Date(entry.created_at || paymentRecord.completed_at || Date.now()).toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      supportLine: competition.subtitle || "Support childhood cancer survivors",
+      websiteUrl: "www.sellosakafoundation.org",
+      foundationEmail: "sellosaka.care@gmail.com",
+      entryId: paymentRecord.competition_entry_id,
+      ticketPdfStorageId: entry.ticket_pdf_storage_id ?? null,
+    };
   },
 });

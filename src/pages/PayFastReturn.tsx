@@ -12,9 +12,15 @@ interface CompetitionSuccessPayload {
   reference: string;
   participant_name: string;
   email: string;
+  participant_phone: string;
   competition_title: string;
   prize: string;
+  entry_price: number;
+  competition_period: string;
   draw_date: string;
+  entry_date: string;
+  ticket_download_url: string | null;
+  ticket_emailed?: boolean;
 }
 
 type PaymentStatusResult =
@@ -72,7 +78,7 @@ export function PayFastReturn() {
 
     if (paymentStatus.status === "completed") {
       if (paymentStatus.purpose === "competition_entry" && paymentStatus.competition_success) {
-        navigate("/competition/success", {
+        navigate(`/competition/success?payment_reference=${encodeURIComponent(paymentStatus.competition_success.reference)}`, {
           state: paymentStatus.competition_success,
         });
         return;
@@ -121,7 +127,7 @@ export function PayFastReturn() {
         });
 
         if (finalized?.purpose === "competition_entry" && finalized?.competition_success) {
-          navigate("/competition/success", {
+          navigate(`/competition/success?payment_reference=${encodeURIComponent(finalized.competition_success.reference)}`, {
             state: finalized.competition_success,
           });
           return;

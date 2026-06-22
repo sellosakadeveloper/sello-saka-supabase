@@ -55,6 +55,7 @@ export default defineSchema({
     email: v.string(),
     phone: v.string(),
     ticket_number: v.optional(v.string()),
+    ticket_pdf_storage_id: v.optional(v.id("_storage")),
     proof_of_payment_url: v.optional(v.string()),
     payment_method: v.optional(v.string()),
     payment_reference: v.optional(v.string()),

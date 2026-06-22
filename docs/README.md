@@ -24,10 +24,6 @@ This repository keeps two parallel documentation systems:
 - [Auth And Admin](features/auth-and-admin.md)
 - [Ticketing](features/ticketing.md)
 
-## Operations
-
-- [Supabase To Convex Backfill](operations/supabase-to-convex-backfill.md)
-
 ## Notes
 
 These docs describe the current codebase layout and behavior. They are meant for orientation and maintenance, not as product requirements.

@@ -1,5 +1,6 @@
 import { action, httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
 const textEncoder = new TextEncoder();
@@ -445,6 +446,311 @@ function assertPayFastPaymentContext(
   }
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatCurrency(value: number): string {
+  return `R${Number(value || 0).toFixed(2)}`;
+}
+
+function buildCompetitionTicketEmailHtml(details: {
+  participantName: string;
+  participantPhone: string;
+  email: string;
+  ticketNumber: string;
+  paymentReference: string;
+  competitionTitle: string;
+  prize: string;
+  entryPrice: number;
+  competitionPeriod: string;
+  competitionStartDate: string;
+  competitionEndDate: string;
+  drawDate: string;
+  entryDate: string;
+  supportLine: string;
+  websiteUrl: string;
+  foundationEmail: string;
+}) {
+  return `
+    <div style="background:#f5f7fb;padding:24px 12px;font-family:Arial,sans-serif;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:980px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;">
+        <tr>
+          <td style="padding:0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td valign="top" style="width:64%;padding:36px 40px 28px 40px;background:#ffffff;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td style="font-size:0;line-height:0;padding-bottom:28px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                          <tr>
+                            <td valign="middle" style="width:44px;">
+                              <div style="width:36px;height:36px;border:1px solid #c9a44c;border-radius:999px;color:#c9a44c;font-size:13px;font-weight:700;line-height:36px;text-align:center;">SS</div>
+                            </td>
+                            <td valign="middle" style="font-size:18px;font-weight:700;color:#122033;letter-spacing:0.2px;">Sello Saka Foundation</td>
+                            <td valign="middle" align="right" style="font-size:12px;line-height:1.5;color:#6e7b8a;font-weight:700;letter-spacing:3px;text-transform:uppercase;">
+                              Official<br/>Fundraising Ticket
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:14px;color:#324253;font-size:18px;font-family:Times,serif;font-style:italic;">${escapeHtml(details.supportLine)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:28px;color:#122033;font-size:34px;line-height:1.05;font-weight:800;text-transform:uppercase;">${escapeHtml(details.competitionTitle)}</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                          <tr>
+                            <td valign="top" style="width:33%;padding-right:16px;">
+                              <div style="font-size:12px;color:#6e7b8a;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-bottom:8px;">Competition Period</div>
+                              <div style="font-size:16px;line-height:1.45;color:#122033;font-weight:700;">${escapeHtml(details.competitionStartDate)} - ${escapeHtml(details.competitionEndDate)}</div>
+                            </td>
+                            <td valign="top" style="width:23%;padding-right:16px;">
+                              <div style="font-size:12px;color:#6e7b8a;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-bottom:8px;">Draw Date</div>
+                              <div style="font-size:17px;line-height:1.45;color:#122033;font-weight:700;">${escapeHtml(details.drawDate)}</div>
+                            </td>
+                            <td valign="top" style="width:22%;padding-right:16px;">
+                              <div style="font-size:12px;color:#6e7b8a;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-bottom:8px;">Entry Price</div>
+                              <div style="font-size:22px;line-height:1.2;color:#2b5164;font-weight:800;">${formatCurrency(details.entryPrice)}</div>
+                            </td>
+                            <td valign="top" style="width:22%;">
+                              <div style="font-size:12px;color:#6e7b8a;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-bottom:8px;">Entry Day</div>
+                              <div style="font-size:16px;line-height:1.45;color:#122033;font-weight:700;">${escapeHtml(details.entryDate)}</div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td valign="top" style="width:36%;background:#2f4d5c;color:#ffffff;padding:28px 28px 24px 28px;">
+                  <div style="font-size:12px;line-height:1.5;font-weight:700;letter-spacing:3px;text-transform:uppercase;padding-bottom:14px;">Participant Stub</div>
+                  <div style="font-size:18px;font-weight:700;padding-bottom:20px;">REF-${escapeHtml(details.ticketNumber)}</div>
+                  <div style="border-top:1px solid rgba(255,255,255,0.22);padding-top:20px;margin-top:6px;">
+                    <div style="font-size:12px;color:#d4dde5;letter-spacing:1px;padding-bottom:6px;">Participant Name</div>
+                    <div style="font-size:16px;color:#ffffff;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.22);">${escapeHtml(details.participantName)}</div>
+                    <div style="font-size:12px;color:#d4dde5;letter-spacing:1px;padding:18px 0 6px;">Phone Number</div>
+                    <div style="font-size:16px;color:#ffffff;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.22);">${escapeHtml(details.participantPhone || "-")}</div>
+                    <div style="font-size:12px;color:#d4dde5;letter-spacing:1px;padding:18px 0 6px;">Email Address</div>
+                    <div style="font-size:16px;color:#ffffff;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.22);word-break:break-word;">${escapeHtml(details.email)}</div>
+                  </div>
+                  <div style="padding-top:34px;text-align:center;">
+                    <div style="font-size:22px;font-weight:800;letter-spacing:0.5px;">${escapeHtml(details.ticketNumber)}</div>
+                    <div style="font-size:13px;color:#d4dde5;padding-top:8px;">${escapeHtml(details.foundationEmail)}</div>
+                    <div style="font-size:13px;color:#d4dde5;padding-top:4px;">${escapeHtml(details.websiteUrl)}</div>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      <div style="max-width:980px;margin:14px auto 0;color:#667085;font-size:12px;line-height:1.5;padding:0 8px;">
+        Payment reference: ${escapeHtml(details.paymentReference)}<br/>
+        Prize: ${escapeHtml(details.prize)}<br/>
+        Competition period: ${escapeHtml(details.competitionPeriod)}
+      </div>
+    </div>
+  `;
+}
+
+async function generateCompetitionTicketPdf(details: {
+  participantName: string;
+  participantPhone: string;
+  email: string;
+  ticketNumber: string;
+  paymentReference: string;
+  competitionTitle: string;
+  prize: string;
+  entryPrice: number;
+  competitionPeriod: string;
+  competitionStartDate: string;
+  competitionEndDate: string;
+  drawDate: string;
+  entryDate: string;
+  supportLine: string;
+  websiteUrl: string;
+  foundationEmail: string;
+}): Promise<ArrayBuffer> {
+  const { jsPDF } = await import("jspdf");
+  const pageWidth = 720;
+  const pageHeight = 405;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: [pageWidth, pageHeight] });
+  const stubX = 455;
+
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(10, 10, pageWidth - 20, pageHeight - 20, 18, 18, "F");
+  doc.setDrawColor(224, 229, 235);
+  doc.roundedRect(10, 10, pageWidth - 20, pageHeight - 20, 18, 18, "S");
+
+  doc.setFillColor(47, 77, 92);
+  doc.roundedRect(stubX, 10, pageWidth - stubX - 10, pageHeight - 20, 0, 0, "F");
+  doc.setFillColor(255, 255, 255);
+  doc.circle(stubX, pageHeight / 2, 12, "F");
+
+  doc.setDrawColor(201, 164, 76);
+  doc.circle(48, 58, 18, "S");
+  doc.setTextColor(18, 32, 51);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("SS", 41, 63);
+  doc.setFontSize(18);
+  doc.text("Sello Saka Foundation", 82, 64);
+
+  doc.setFontSize(12);
+  doc.setTextColor(110, 123, 138);
+  doc.text(["OFFICIAL", "FUNDRAISING TICKET"], 360, 46, { align: "center" });
+
+  doc.setFont("times", "italic");
+  doc.setFontSize(18);
+  doc.setTextColor(50, 66, 83);
+  doc.text(details.supportLine, 40, 128);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(31);
+  doc.setTextColor(18, 32, 51);
+  const titleLines = doc.splitTextToSize(details.competitionTitle.toUpperCase(), 360);
+  doc.text(titleLines, 40, 165);
+
+  const bottomY = 323;
+  doc.setFontSize(11);
+  doc.setTextColor(110, 123, 138);
+  doc.text("COMPETITION PERIOD", 40, bottomY);
+  doc.text("DRAW DATE", 228, bottomY);
+  doc.text("ENTRY PRICE", 412, bottomY);
+  doc.text("ENTRY DAY", 545, bottomY);
+
+  doc.setFontSize(16);
+  doc.setTextColor(18, 32, 51);
+  doc.text([details.competitionStartDate, details.competitionEndDate], 40, bottomY + 22);
+  doc.text(details.drawDate, 228, bottomY + 22);
+  doc.setFontSize(22);
+  doc.setTextColor(43, 81, 100);
+  doc.text(formatCurrency(details.entryPrice), 412, bottomY + 24);
+  doc.setFontSize(16);
+  doc.setTextColor(18, 32, 51);
+  doc.text(details.entryDate, 545, bottomY + 22);
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("PARTICIPANT STUB", stubX + 22, 42);
+  doc.setFontSize(18);
+  doc.text(`REF-${details.ticketNumber}`, stubX + 22, 72);
+  doc.setDrawColor(130, 152, 164);
+  doc.line(stubX + 22, 88, pageWidth - 32, 88);
+
+  const stubFields = [
+    { label: "Participant Name", value: details.participantName },
+    { label: "Phone Number", value: details.participantPhone || "-" },
+    { label: "Email Address", value: details.email },
+  ];
+  let stubY = 124;
+  for (const field of stubFields) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(212, 221, 229);
+    doc.text(field.label, stubX + 22, stubY);
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    const lines = doc.splitTextToSize(field.value, 205);
+    doc.text(lines, stubX + 22, stubY + 20);
+    const lineCount = Array.isArray(lines) ? lines.length : 1;
+    stubY += 36 + (lineCount - 1) * 13;
+    doc.setDrawColor(130, 152, 164);
+    doc.line(stubX + 22, stubY, pageWidth - 32, stubY);
+    stubY += 18;
+  }
+
+  const footerTop = Math.max(stubY + 18, pageHeight - 76);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text(details.ticketNumber, stubX + 112, footerTop, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(212, 221, 229);
+  doc.text(details.foundationEmail, stubX + 112, footerTop + 16, { align: "center" });
+  doc.text(details.websiteUrl, stubX + 112, footerTop + 30, { align: "center" });
+
+  return doc.output("arraybuffer");
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+async function ensureCompetitionTicketPdf(
+  ctx: any,
+  details: {
+    participantName: string;
+    participantPhone: string;
+    email: string;
+    ticketNumber: string;
+    paymentReference: string;
+    competitionTitle: string;
+    prize: string;
+    entryPrice: number;
+    competitionPeriod: string;
+    competitionStartDate: string;
+    competitionEndDate: string;
+    drawDate: string;
+    entryDate: string;
+    supportLine: string;
+    websiteUrl: string;
+    foundationEmail: string;
+    entryId: Id<"competition_entries"> | null;
+    ticketPdfStorageId: Id<"_storage"> | null;
+  },
+  forceRegenerate = false,
+): Promise<{ storageId: Id<"_storage">; downloadUrl: string | null; base64: string }> {
+  if (!forceRegenerate && details.ticketPdfStorageId) {
+    const existingBlob = await ctx.storage.get(details.ticketPdfStorageId);
+    const existingBase64 = existingBlob ? arrayBufferToBase64(await existingBlob.arrayBuffer()) : "";
+    const existingDownloadUrl = await ctx.storage.getUrl(details.ticketPdfStorageId);
+    if (existingBase64) {
+      return {
+        storageId: details.ticketPdfStorageId,
+        downloadUrl: existingDownloadUrl,
+        base64: existingBase64,
+      };
+    }
+  }
+
+  const pdfBuffer = await generateCompetitionTicketPdf(details);
+  const storageId = await ctx.storage.store(new Blob([pdfBuffer], { type: "application/pdf" }));
+  if (details.entryId) {
+    await ctx.runMutation(internal.payments.attachTicketPdf, {
+      entryId: details.entryId,
+      storageId,
+    });
+  }
+  const downloadUrl = await ctx.storage.getUrl(storageId);
+
+  return {
+    storageId,
+    downloadUrl,
+    base64: arrayBufferToBase64(pdfBuffer),
+  };
+}
+
 async function sendCompetitionTicketEmail(details: {
   participantName: string;
   participantPhone: string;
@@ -455,27 +761,19 @@ async function sendCompetitionTicketEmail(details: {
   prize: string;
   entryPrice: number;
   competitionPeriod: string;
+  competitionStartDate: string;
+  competitionEndDate: string;
   drawDate: string;
+  entryDate: string;
+  supportLine: string;
+  websiteUrl: string;
+  foundationEmail: string;
+  ticketPdfBase64: string;
 }) {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey || !details.email) {
     return false;
   }
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #1f2937;">
-      <h1 style="font-size: 24px; color: #111827; margin-bottom: 16px;">Your competition ticket is confirmed</h1>
-      <p style="margin-bottom: 8px;">Name: ${details.participantName}</p>
-      <p style="margin-bottom: 8px;">Ticket: <strong>${details.ticketNumber}</strong></p>
-      <p style="margin-bottom: 8px;">Reference: ${details.paymentReference}</p>
-      <p style="margin-bottom: 8px;">Competition: ${details.competitionTitle}</p>
-      <p style="margin-bottom: 8px;">Prize: ${details.prize}</p>
-      <p style="margin-bottom: 8px;">Entry price: R${details.entryPrice.toFixed(2)}</p>
-      <p style="margin-bottom: 8px;">Competition period: ${details.competitionPeriod}</p>
-      <p style="margin-bottom: 16px;">Draw date: ${details.drawDate}</p>
-      <p style="margin-bottom: 0;">Phone: ${details.participantPhone || "-"}</p>
-    </div>
-  `;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -487,7 +785,13 @@ async function sendCompetitionTicketEmail(details: {
       from: getTicketFromAddress(),
       to: [details.email],
       subject: `Your Competition Ticket - ${details.ticketNumber}`,
-      html,
+      html: buildCompetitionTicketEmailHtml(details),
+      attachments: [
+        {
+          filename: `${details.ticketNumber}.pdf`,
+          content: details.ticketPdfBase64,
+        },
+      ],
     }),
   });
 
@@ -507,7 +811,18 @@ async function maybeSendCompetitionTicketEmail(
     return finalized;
   }
 
-  const emailSent = await sendCompetitionTicketEmail(finalized.competitionEmail);
+  const ticketDocument = await ensureCompetitionTicketPdf(ctx, finalized.competitionEmail);
+
+  let emailSent = false;
+  try {
+    emailSent = await sendCompetitionTicketEmail({
+      ...finalized.competitionEmail,
+      ticketPdfBase64: ticketDocument.base64,
+    });
+  } catch (error) {
+    console.error("Ticket email delivery failed:", error);
+  }
+
   if (emailSent && finalized.competitionEmail.entryId) {
     await ctx.runMutation(internal.payments.markTicketEmailed, {
       entryId: finalized.competitionEmail.entryId,
@@ -519,6 +834,7 @@ async function maybeSendCompetitionTicketEmail(
     competition_success: finalized.competition_success
       ? {
           ...finalized.competition_success,
+          ticket_download_url: ticketDocument.downloadUrl,
           ticket_emailed: Boolean(emailSent),
         }
       : finalized.competition_success,
@@ -641,6 +957,26 @@ export const confirmSandboxPayfastReturn = action({
     });
 
     return await maybeSendCompetitionTicketEmail(ctx, finalized);
+  },
+});
+
+export const ensureCompetitionTicketDownload = action({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const details = await ctx.runQuery(internal.payments.getCompetitionTicketEmailData, {
+      paymentReference: args.paymentReference,
+    });
+
+    if (!details) {
+      throw new Error("Competition ticket not found for that payment reference");
+    }
+
+    const ticketDocument = await ensureCompetitionTicketPdf(ctx, details, true);
+    return {
+      ticketDownloadUrl: ticketDocument.downloadUrl,
+    };
   },
 });
 

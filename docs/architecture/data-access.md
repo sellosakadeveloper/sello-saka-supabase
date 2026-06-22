@@ -19,19 +19,18 @@ Pages and admin components import the shared client rather than recreating conne
 - `src/pages/Auth.tsx` and `src/pages/Admin.tsx` use Convex Auth and Convex-backed authorization queries and actions.
 - `src/components/admin/*.tsx` read and mutate admin domains through Convex, including managed-user invites.
 
-The current pattern is pragmatic and direct: data access often sits near the feature that uses it, rather than behind a separate repository layer. Convex is the live runtime backend while Supabase remains in the repo only as a legacy project artifact until final cleanup.
+The current pattern is pragmatic and direct: data access often sits near the feature that uses it, rather than behind a separate repository layer. Convex is the live runtime backend.
 
 ## Backend Project Artifacts
 
-The root `convex/` directory owns the backend schema and functions for the live data model, including auth, admin CRUD, payment workflows, and file uploads. The root `supabase/` directory still owns legacy project-side configuration, migrations, and scripts until the migration is fully decommissioned.
+The root `convex/` directory owns the backend schema and functions for the live data model, including auth, admin CRUD, payment workflows, and file uploads.
 
 ## Architectural Constraint
 
-Any change that affects live backend behavior should be reflected in `convex/`. Supabase changes should be treated as migration-support or decommissioning work, not as additions to the active runtime path.
+Any change that affects live backend behavior should be reflected in `convex/`.
 
 ## Related Agent Docs
 
 - `src/integrations/AGENTS.md`
 - `src/integrations/convex/AGENTS.md`
 - `convex/AGENTS.md`
-- `supabase/AGENTS.md`

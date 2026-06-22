@@ -18,4 +18,3 @@ This subtree owns Convex schema, queries, mutations, actions, and other backend 
 
 - Backend project logic belongs here.
 - Browser client initialization belongs in `src/integrations/convex`.
-- Legacy Supabase artifacts remain in `supabase/` only until their migration phase is complete.

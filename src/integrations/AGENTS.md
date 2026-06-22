@@ -13,7 +13,7 @@ This subtree owns client-side access points to external systems and generated ty
 - Connection setup and generated types belong here.
 - Pages and components may consume integrations from here, but should not reimplement connection setup.
 - Keep integration-specific details localized so the rest of the app depends on stable import paths.
-- Browser integration setup should stay Convex-first. Legacy Supabase work belongs in the root `supabase/` project artifacts or migration scripts, not in a browser client wrapper.
+- Browser integration setup should stay Convex-first. Do not reintroduce Supabase into the browser runtime.
 
 ## References
 

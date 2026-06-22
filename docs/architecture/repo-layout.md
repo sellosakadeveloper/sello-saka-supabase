@@ -2,14 +2,13 @@
 
 ## Overview
 
-The repository is organized around the current project structure rather than a separate domain-driven taxonomy. The main code lives in `src/`, Convex backend code lives in `convex/`, legacy Supabase project artifacts live in `supabase/`, static public assets live in `public/`, and local ticket-related notes live in `ticket_code/`.
+The repository is organized around the current project structure rather than a separate domain-driven taxonomy. The main code lives in `src/`, Convex backend code lives in `convex/`, static public assets live in `public/`, and local ticket-related notes live in `ticket_code/`.
 
 ## Main Directories
 
 - `src/`: frontend application code
 - `convex/`: Convex schema and server functions
 - `public/`: stable public-path assets
-- `supabase/`: legacy Supabase configuration, migrations, and migration-support scripts that remain during decommissioning
 - `ticket_code/`: local markdown notes for the ticketing area
 - `docs/`: human-facing architecture and feature documentation
 
@@ -31,7 +30,7 @@ The repo is already structured in a way that signals ownership:
 - Shared UI stays in `src/components`.
 - Admin-specific behavior stays grouped in `src/components/admin`.
 - External system coupling stays in `src/integrations`.
-- Backend product logic stays in `convex/` once it moves off Supabase.
+- Backend product logic stays in `convex/`.
 
 The `AGENTS.md` tree follows these same boundaries so instructions stay close to the code they govern.
 

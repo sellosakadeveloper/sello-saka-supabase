@@ -16,6 +16,11 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ResourceHub from "./pages/ResourceHub";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
+import CompetitionTerms from "./pages/CompetitionTerms";
+import CompetitionRules from "./pages/CompetitionRules";
 import { PayFastReturn } from "./pages/PayFastReturn";
 
 const queryClient = new QueryClient();
@@ -35,12 +40,17 @@ const App = () => (
           <Route path="/programs" element={<Programs />} />
           <Route path="/impact" element={<Impact />} />
           <Route path="/competition" element={<Competition />} />
+          <Route path="/competition/terms" element={<CompetitionTerms />} />
+          <Route path="/competition/rules" element={<CompetitionRules />} />
           <Route path="/competition/success" element={<TicketSuccess />} />
           <Route path="/payfast-return" element={<PayFastReturn />} />
           <Route path="/donate" element={<Donate />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/resources" element={<ResourceHub />} />
           <Route path="/apply" element={<Apply />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/cookies" element={<CookiePolicy />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

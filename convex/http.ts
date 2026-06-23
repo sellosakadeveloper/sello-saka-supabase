@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
-import { payfastWebhook, paystackWebhook } from "./paymentsNode";
+import { competitionTicketData, payfastWebhook, paystackWebhook } from "./paymentsNode";
 
 const http = httpRouter();
 
@@ -16,6 +16,12 @@ http.route({
   path: "/paystack-webhook",
   method: "POST",
   handler: paystackWebhook,
+});
+
+http.route({
+  path: "/competition-ticket-data",
+  method: "GET",
+  handler: competitionTicketData,
 });
 
 export default http;

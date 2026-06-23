@@ -18,7 +18,7 @@ Changes made via Lovable will be committed automatically to this repo.
 
 If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The only requirement is having Node.js installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
 Follow these steps:
 
@@ -30,13 +30,28 @@ git clone <YOUR_GIT_URL>
 cd <YOUR_PROJECT_NAME>
 
 # Step 3: Install the necessary dependencies.
-npm i
+corepack pnpm install
 
 # Step 4: Start the local app and Convex backend together.
-npm run dev
+corepack pnpm dev
 ```
 
-`npm run dev` now starts both Vite and `convex dev`. The legacy frontend Supabase client has been removed from the live runtime path.
+`pnpm dev` starts both Vite and `convex dev`. The legacy frontend Supabase client has been removed from the live runtime path.
+
+If you need the competition ticket PDF flow locally, run Convex and Netlify separately:
+
+```powershell
+# Terminal 1
+.\node_modules\.bin\convex.cmd dev
+
+# Terminal 2
+$env:APPDATA="$PWD\.appdata"
+.\node_modules\.bin\netlify.cmd dev --command ".\scripts\dev-vite.cmd"
+```
+
+Use `http://localhost:8888` for the Netlify-backed local site when testing ticket PDF downloads. Raw Vite on `http://localhost:8080` does not expose the Netlify PDF function route.
+
+Email PDF attachments are rendered from Convex server actions and therefore require a public URL. Local `localhost` function URLs are intentionally skipped for server-side ticket attachment generation.
 
 **Edit a file directly in GitHub**
 

@@ -307,7 +307,7 @@ async function finalizeVerifiedPaymentHelper(ctx: { db: any; storage: { getUrl: 
       }),
       supportLine: competition.subtitle || "Support childhood cancer survivors",
       websiteUrl: "www.sellosakafoundation.org",
-      foundationEmail: "sellosaka.care@gmail.com",
+      foundationEmail: "support@sellosakafoundation.org",
       entryId,
       ticketPdfStorageId: entry?.ticket_pdf_storage_id ?? null,
     },
@@ -638,7 +638,7 @@ export const getCompetitionTicketEmailData = internalQuery({
       }),
       supportLine: competition.subtitle || "Support childhood cancer survivors",
       websiteUrl: "www.sellosakafoundation.org",
-      foundationEmail: "sellosaka.care@gmail.com",
+      foundationEmail: "support@sellosakafoundation.org",
       entryId: paymentRecord.competition_entry_id,
       ticketPdfStorageId: entry.ticket_pdf_storage_id ?? null,
     };

@@ -7,6 +7,9 @@ The ticketing area appears to be supported partly by application code and partly
 ## Relevant Source Areas
 
 - `src/pages/TicketSuccess.tsx`
+- `netlify/functions/competition-ticket-pdf.ts`
+- `src/integrations/tickets/template.ts`
+- `convex/paymentsNode.ts`
 - `ticket_code/README.md`
 - `ticket_code/layout.md`
 - `ticket_code/ticket_info.md`
@@ -21,6 +24,13 @@ Competition ticket emails are sent from the Convex backend. The sender address i
 - `AUTH_EMAIL_FROM` as the fallback sender for auth emails and the secondary fallback for ticket emails
 
 For production delivery, these sender addresses should point at a verified Resend domain owned by the foundation.
+
+Competition ticket PDFs now use a shared HTML ticket layout:
+
+- the browser download route is rendered by the Netlify function at `/.netlify/functions/competition-ticket-pdf`
+- the email body uses the same ticket template source, but email PDF attachments require a public render URL reachable by Convex cloud
+
+In local development, browser PDF downloads work only when the site is served through Netlify dev. Running only raw Vite does not expose the PDF function route.
 
 ## Related Agent Docs
 

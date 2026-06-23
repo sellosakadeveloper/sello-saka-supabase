@@ -18,6 +18,7 @@ Pages and admin components import the shared client rather than recreating conne
 - `src/pages/Donate.tsx`, `src/components/ActiveCompetition.tsx`, and `src/pages/PayFastReturn.tsx` use Convex payment mutations, actions, and status queries.
 - `src/pages/Auth.tsx` and `src/pages/Admin.tsx` use Convex Auth and Convex-backed authorization queries and actions.
 - `src/components/admin/*.tsx` read and mutate admin domains through Convex, including managed-user invites.
+- `netlify/functions/competition-ticket-pdf.ts` is a function-side rendering endpoint used by the ticket download flow; it is not part of the Convex runtime, but it is part of the live payment-adjacent delivery path.
 
 The current pattern is pragmatic and direct: data access often sits near the feature that uses it, rather than behind a separate repository layer. Convex is the live runtime backend.
 

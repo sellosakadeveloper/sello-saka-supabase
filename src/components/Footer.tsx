@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, MessageCircle } from "lucide-react";
 import logo from "@/assets/brand/svg/logo no background bigger.svg";
 
+const NLC_COMPLIANCE_URL = "https://www.nlcsa.org.za/regulatory-compliance/";
+
 const Footer = () => {
   return (
     <footer className="bg-navy-primary border-t border-gold-800">
@@ -92,8 +94,8 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-start gap-2">
                 <Mail className="w-5 h-5 text-gold-600 mt-0.5" />
-                <a href="mailto:sellosaka.care@gmail.com" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
-                  sellosaka.care@gmail.com
+                <a href="mailto:support@sellosakafoundation.org" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
+                  support@sellosakafoundation.org
                 </a>
               </li>
               <li className="flex items-start gap-2">
@@ -110,20 +112,36 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-400/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-sm">
-            © 2025 Sello Saka Foundation. All rights reserved. NPO Registration: 123-456-NPO
-          </p>
-          <div className="flex gap-6">
-            <Link to="/privacy" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
-              Privacy Policy
-            </Link>
-            <Link to="/terms" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
-              Terms of Service
-            </Link>
-            <Link to="/cookies" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
-              Cookie Policy
-            </Link>
+        <div className="border-t border-gray-400/20 pt-8 space-y-4">
+          <div className="rounded-xl border border-gold-800/40 bg-navy-800/40 px-4 py-3 text-center md:text-left">
+            <p className="text-sm text-gray-300">
+              NLC: Scheme No: 00539/01. Competition regulatory information is available from the{" "}
+              <a
+                href={NLC_COMPLIANCE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gold-500 hover:text-gold-400 transition-colors"
+              >
+                National Lotteries Commission
+              </a>
+              .
+            </p>
+          </div>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-gray-400 text-sm text-center md:text-left">
+              {"\u00A9"} 2026 Sello Saka Foundation. All rights reserved. NPC.
+            </p>
+            <div className="flex gap-6">
+              <Link to="/privacy" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
+                Privacy Policy
+              </Link>
+              <Link to="/terms" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
+                Terms of Service
+              </Link>
+              <Link to="/cookies" className="text-gray-400 hover:text-gold-600 transition-colors text-sm">
+                Cookie Policy
+              </Link>
+            </div>
           </div>
         </div>
       </div>

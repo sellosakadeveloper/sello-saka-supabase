@@ -10,10 +10,44 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+[functions."competition-ticket-pdf"]
+  node_bundler = "zisi"
+  external_node_modules = ["playwright", "playwright-core", "chromium-bidi"]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+[[redirects]]
+  from = "/@vite/*"
+  to = "http://127.0.0.1:8080/@vite/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/@react-refresh"
+  to = "http://127.0.0.1:8080/@react-refresh"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/src/*"
+  to = "http://127.0.0.1:8080/src/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/node_modules/*"
+  to = "http://127.0.0.1:8080/node_modules/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/convex/*"
+  to = "http://127.0.0.1:8080/convex/:splat"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/*"

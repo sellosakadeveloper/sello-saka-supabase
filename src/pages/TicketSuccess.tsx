@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,32 +43,14 @@ const TicketSuccess = () => {
     const [searchParams] = useSearchParams();
     const paymentReference = searchParams.get("payment_reference");
     const locationState = location.state as TicketSuccessState | null;
-    const [downloadUrl, setDownloadUrl] = useState<string | null>(locationState?.ticket_download_url ?? null);
     const paymentStatus = useQuery(
         api.payments.getPaymentStatus,
         paymentReference ? { paymentReference } : "skip",
     ) as PaymentStatusResult;
-    const ensureCompetitionTicketDownload = useAction(api.paymentsNode.ensureCompetitionTicketDownload);
     const state = locationState ?? paymentStatus?.competition_success ?? null;
-
-    useEffect(() => {
-        setDownloadUrl(locationState?.ticket_download_url ?? paymentStatus?.competition_success?.ticket_download_url ?? null);
-    }, [locationState?.ticket_download_url, paymentStatus?.competition_success?.ticket_download_url]);
-
-    useEffect(() => {
-        if (!paymentReference) {
-            return;
-        }
-
-        void (async () => {
-            try {
-                const result = await ensureCompetitionTicketDownload({ paymentReference });
-                setDownloadUrl(result.ticketDownloadUrl ?? null);
-            } catch (error) {
-                console.error("Failed to refresh ticket download URL:", error);
-            }
-        })();
-    }, [ensureCompetitionTicketDownload, paymentReference]);
+    const downloadUrl = paymentReference
+        ? `/.netlify/functions/competition-ticket-pdf?payment_reference=${encodeURIComponent(paymentReference)}`
+        : locationState?.ticket_download_url ?? paymentStatus?.competition_success?.ticket_download_url ?? null;
 
     if (!state && paymentStatus !== undefined) {
         return (

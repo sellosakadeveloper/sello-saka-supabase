@@ -9,7 +9,7 @@ import { Sparkles, CheckCircle2, Trophy, ShieldCheck, Users, CreditCard, Loader2
 import { toast } from "sonner";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { HoverCard } from "@/components/animations/HoverCard";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface ActiveCompetitionProps {
     competition: {
@@ -29,6 +29,8 @@ interface ActiveCompetitionProps {
     };
 }
 
+const NLC_COMPLIANCE_URL = "https://www.nlcsa.org.za/regulatory-compliance/";
+
 const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -43,9 +45,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         email: "",
         phone: "",
     });
-    const [paymentMethod, setPaymentMethod] = useState("");
     const createPayment = useAction(api.paymentsNode.createPayment);
-    const verifyPayment = useAction(api.paymentsNode.verifyPayment);
 
     const submitHostedPaymentForm = (processUrl: string, formFields: Record<string, string>) => {
         console.log("Submitting PayFast form", {
@@ -101,99 +101,6 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         return () => clearInterval(timer);
     }, [competition.end_date]);
 
-    const verifyAndGenerateTicket = async (reference: string, paymentReference: string) => {
-        try {
-            const data = await verifyPayment({
-                reference,
-                payment_reference: paymentReference,
-            });
-
-            if (data.success && data.competition_success) {
-                navigate(`/competition/success?payment_reference=${encodeURIComponent(data.competition_success.reference)}`, {
-                    state: data.competition_success,
-                });
-                return;
-            }
-
-            toast.error("Verification Failed", {
-                description: "Could not verify your payment. Please contact support.",
-            });
-        } catch (error) {
-            console.error("Verification error:", error);
-            toast.error("Error", {
-                description: "Something went wrong. Please contact support with your payment reference.",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handlePaystack = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!formData.name || !formData.email || !formData.phone) {
-            toast.error("Please fill in all fields");
-            return;
-        }
-
-        const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
-
-        if (!publicKey || publicKey === "pk_test_YOUR_PUBLIC_KEY_HERE") {
-            toast.error("Payment not configured", {
-                description: "Paystack is not yet configured. Please contact the administrator.",
-            });
-            return;
-        }
-
-        if (!window.PaystackPop) {
-            toast.error("Payment Error", {
-                description: "Payment system failed to load. Please refresh the page.",
-            });
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const initData = await createPayment({
-                purpose: "competition_entry",
-                provider: "paystack",
-                competition_id: competition.id as never,
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                site_url: window.location.origin,
-            });
-
-            const handler = window.PaystackPop.setup({
-                key: publicKey,
-                email: initData.email,
-                amount: Math.round(Number(initData.amount) * 100),
-                currency: "ZAR",
-                metadata: initData.metadata,
-                onSuccess: (response) => {
-                    toast.success("Payment Successful!", {
-                        description: "Generating your ticket...",
-                    });
-                    void verifyAndGenerateTicket(response.reference, initData.payment_reference);
-                },
-                onClose: () => {
-                    toast.info("Payment Cancelled", {
-                        description: "You can try again when you're ready.",
-                    });
-                    setLoading(false);
-                },
-            });
-
-            handler.openIframe();
-        } catch (error: any) {
-            console.error("Paystack error:", error);
-            toast.error("Payment Error", {
-                description: error.message || "Failed to initialize payment. Please try again.",
-            });
-            setLoading(false);
-        }
-    };
-
     const handlePayFast = async () => {
         setLoading(true);
         try {
@@ -225,16 +132,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
             return;
         }
 
-        if (!paymentMethod) {
-            toast.error("Please select a payment method");
-            return;
-        }
-
-        if (paymentMethod === "paystack") {
-            void handlePaystack(e);
-        } else if (paymentMethod === "payfast") {
-            void handlePayFast();
-        }
+        void handlePayFast();
     };
 
     return (
@@ -415,7 +313,7 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                     <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
                         {[
                             { step: 1, title: "Fill in Your Details", desc: "Enter your name, email, and phone number in the form below." },
-                            { step: 2, title: "Pay Securely", desc: `Entry costs R${competition.entry_fee}. Pay securely via Paystack or PayFast.` },
+                            { step: 2, title: "Pay Securely", desc: `Entry costs R${competition.entry_fee}. Pay securely via PayFast.` },
                             { step: 3, title: "Receive Your Ticket", desc: "Your unique digital ticket will be emailed to you instantly after payment." },
                             { step: 4, title: "Wait for Results", desc: "Winners announced after the countdown ends via live random draw!" }
                         ].map((item, index) => (
@@ -494,41 +392,59 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                             <CreditCard className="w-5 h-5 text-gold-600 flex-shrink-0 mt-0.5" />
                                             <div className="text-sm text-gray-700">
                                                 <p className="font-semibold mb-1">Entry Fee: R{competition.entry_fee.toFixed(2)}</p>
-                                                <p>Secure payment powered by Paystack or PayFast. Supports card, EFT, bank transfer, and more.</p>
+                                                <p>Secure payment powered by PayFast. Supports card, EFT, bank transfer, and more.</p>
                                                 <p className="mt-1 text-xs text-gray-500">Your donation supports our childhood cancer survivor programs.</p>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-gold-300 bg-gold-50 px-4 py-4 text-sm text-navy-primary">
+                                        <p className="font-semibold mb-1">Competition Compliance</p>
+                                        <p>
+                                            NPC fundraising competition under registered scheme
+                                            <span className="font-semibold"> NLC: Scheme No: 00539/01</span>.
+                                            Regulatory information is available from the{" "}
+                                            <a
+                                                href={NLC_COMPLIANCE_URL}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-gold-700 underline underline-offset-2 hover:text-gold-600"
+                                            >
+                                                National Lotteries Commission
+                                            </a>
+                                            .
+                                        </p>
+                                        <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
+                                            <Link
+                                                to="/competition/terms"
+                                                className="text-gold-700 underline underline-offset-2 hover:text-gold-600"
+                                            >
+                                                Competition Terms
+                                            </Link>
+                                            <Link
+                                                to="/competition/rules"
+                                                className="text-gold-700 underline underline-offset-2 hover:text-gold-600"
+                                            >
+                                                Competition Rules
+                                            </Link>
                                         </div>
                                     </div>
 
                                     {/* Payment Method Selection */}
                                     <div>
                                         <Label className="mt-4 block mb-2 font-semibold">Select Payment Method</Label>
-                                        <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-6">
-                                            <Button
-                                                type="button"
-                                                variant={paymentMethod === "payfast" ? "default" : "outline"}
-                                                className={`w-full h-20 flex flex-col gap-2 ${paymentMethod === "payfast" ? "bg-gold-600 text-navy-primary" : ""}`}
-                                                onClick={() => setPaymentMethod("payfast")}
-                                            >
+                                        <div className="max-w-md mx-auto mb-6">
+                                            <div className="w-full h-20 rounded-md border bg-gold-600/10 border-gold-600 text-navy-primary flex flex-col items-center justify-center gap-2">
                                                 <CreditCard className="w-6 h-6" />
-                                                <span className="text-xs">PayFast</span>
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant={paymentMethod === "paystack" ? "default" : "outline"}
-                                                className={`w-full h-20 flex flex-col gap-2 ${paymentMethod === "paystack" ? "bg-gold-600 text-navy-primary" : ""}`}
-                                                onClick={() => setPaymentMethod("paystack")}
-                                            >
-                                                <CreditCard className="w-6 h-6" />
-                                                <span className="text-xs">Paystack</span>
-                                            </Button>
+                                                <span className="text-xs font-semibold">PayFast</span>
+                                            </div>
                                         </div>
                                     </div>
 
                                     <Button
                                         type="submit"
                                         className="w-full bg-gold-600 hover:bg-gold-400 text-navy-primary text-lg h-14 font-bold"
-                                        disabled={loading || !paymentMethod}
+                                        disabled={loading}
                                     >
                                         {loading ? (
                                             <>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Heart, Smartphone, CheckCircle2, Wallet } from "lucide-react";
+import { Heart, Smartphone, CheckCircle2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,6 @@ const Donate = () => {
   const [donationType, setDonationType] = useState("once");
   const [selectedAmount, setSelectedAmount] = useState("");
   const [customAmount, setCustomAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -25,13 +24,11 @@ const Donate = () => {
   });
 
   const createPayment = useAction(api.paymentsNode.createPayment);
-  const verifyPayment = useAction(api.paymentsNode.verifyPayment);
 
   const resetForm = () => {
     setFormData({ name: "", email: "", phone: "" });
     setSelectedAmount("");
     setCustomAmount("");
-    setPaymentMethod("");
   };
 
   const submitHostedPaymentForm = (processUrl: string, formFields: Record<string, string>) => {
@@ -68,20 +65,10 @@ const Donate = () => {
       return;
     }
 
-    if (!paymentMethod) {
-      toast({
-        title: "Error",
-        description: "Please select a payment method.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
       const initData = await createPayment({
         purpose: "donation",
-        provider: paymentMethod as "payfast" | "paystack",
+        provider: "payfast",
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -90,58 +77,8 @@ const Donate = () => {
         site_url: window.location.origin,
       });
 
-      if (paymentMethod === "payfast") {
-        submitHostedPaymentForm(initData.process_url, initData.form_fields);
-        return;
-      }
-
-      const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
-
-      if (!publicKey || publicKey === "pk_test_YOUR_PUBLIC_KEY_HERE" || !window.PaystackPop) {
-        throw new Error("Paystack is not yet configured. Please try PayFast or contact support.");
-      }
-
-      const handler = window.PaystackPop.setup({
-        key: publicKey,
-        email: initData.email,
-        amount: Math.round(Number(initData.amount) * 100),
-        currency: "ZAR",
-        metadata: {
-          ...initData.metadata,
-          donation_type: donationType,
-        },
-        onSuccess: async (response: { reference: string }) => {
-          try {
-            await verifyPayment({
-              reference: response.reference,
-              payment_reference: initData.payment_reference,
-            });
-
-            toast({
-              title: "Thank You!",
-              description: "Your donation has been received successfully.",
-            });
-            resetForm();
-          } catch (error: any) {
-            toast({
-              title: "Payment Verification Error",
-              description: error.message || "We could not verify your donation automatically.",
-              variant: "destructive",
-            });
-          } finally {
-            setLoading(false);
-          }
-        },
-        onClose: () => {
-          toast({
-            title: "Payment Cancelled",
-            description: "You can try again when you're ready.",
-          });
-          setLoading(false);
-        },
-      });
-
-      handler.openIframe();
+      submitHostedPaymentForm(initData.process_url, initData.form_fields);
+      return;
     } catch (error: any) {
       toast({
         title: "Error",
@@ -293,25 +230,11 @@ const Donate = () => {
 
                 <div>
                   <Label className="text-lg font-semibold mb-4 block">Payment Method</Label>
-                  <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "payfast" ? "default" : "outline"}
-                      className={`w-full h-20 flex flex-col gap-2 ${paymentMethod === "payfast" ? "bg-gold-600 text-navy-primary" : ""}`}
-                      onClick={() => setPaymentMethod("payfast")}
-                    >
+                  <div className="max-w-md mx-auto">
+                    <div className="w-full h-20 rounded-md border bg-gold-600/10 border-gold-600 text-navy-primary flex flex-col items-center justify-center gap-2">
                       <Smartphone className="w-6 h-6" />
-                      <span className="text-xs">PayFast</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "paystack" ? "default" : "outline"}
-                      className={`w-full h-20 flex flex-col gap-2 ${paymentMethod === "paystack" ? "bg-gold-600 text-navy-primary" : ""}`}
-                      onClick={() => setPaymentMethod("paystack")}
-                    >
-                      <Wallet className="w-6 h-6" />
-                      <span className="text-xs">Paystack</span>
-                    </Button>
+                      <span className="text-xs font-semibold">PayFast</span>
+                    </div>
                   </div>
                   <p className="text-sm text-gray-600 mt-3 text-center">
                     Supports Card, EFT, bank transfer, and other payment methods

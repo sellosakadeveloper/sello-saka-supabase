@@ -11,15 +11,24 @@ export default defineConfig(({ mode }) => {
     env.VITE_CONVEX_URL ||
     env.CONVEX_URL ||
     "";
+  const netlifyFunctionsOrigin = env.VITE_NETLIFY_FUNCTIONS_ORIGIN || "";
 
   return {
     define: {
       "import.meta.env.VITE_CONVEX_URL": JSON.stringify(convexUrl),
     },
     server: {
-      host: "::",
+      host: "127.0.0.1",
       port: 8080,
-      allowedHosts: ["statesmanly-jerrie-unnotioned.ngrok-free.dev"],
+      allowedHosts: ["localhost", "127.0.0.1", "statesmanly-jerrie-unnotioned.ngrok-free.dev"],
+      proxy: netlifyFunctionsOrigin
+        ? {
+            "/.netlify/functions": {
+              target: netlifyFunctionsOrigin,
+              changeOrigin: true,
+            },
+          }
+        : undefined,
     },
     preview: {
       allowedHosts: true,

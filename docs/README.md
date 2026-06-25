@@ -32,6 +32,6 @@ This repository keeps two parallel documentation systems:
 
 These docs describe the current codebase layout and behavior. They are meant for orientation and maintenance, not as product requirements.
 
-The live backend runtime is now Convex-driven: Convex handles public reads, form submissions, admin CRUD, payment workflows, file uploads, and the active admin auth gate. Supabase remains in the repository only for legacy project artifacts, backfill support, and eventual decommissioning.
+The live backend runtime is now Convex-driven: Convex handles public reads, form submissions, admin CRUD, payment workflows, PayFast reconciliation, file uploads, and the active admin auth gate. Supabase remains in the repository only for legacy project artifacts, backfill support, and eventual decommissioning.
 
 Some local flows still rely on Netlify Functions, most notably competition ticket PDF generation. See the local development operations doc for the exact Windows startup commands.

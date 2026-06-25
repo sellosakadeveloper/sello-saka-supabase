@@ -880,6 +880,14 @@ export const listCompetitionEntriesByCompetition = query({
       .query("competition_entries")
       .withIndex("by_competition", (q) => q.eq("competition_id", args.competitionId))
       .collect()) as any[];
+    const paymentRecords = (await ctx.db.query("payment_records").collect()) as any[];
+    const paymentRecordsByReference = new Map<string, any>();
+
+    for (const paymentRecord of paymentRecords) {
+      if (paymentRecord.payment_reference) {
+        paymentRecordsByReference.set(paymentRecord.payment_reference, paymentRecord);
+      }
+    }
 
     return sortByCreatedAtDesc(entries).map((entry) => ({
       id: String(entry._id),
@@ -893,6 +901,18 @@ export const listCompetitionEntriesByCompetition = query({
       payment_method: entry.payment_method ?? null,
       payment_reference: entry.payment_reference ?? null,
       payment_status: entry.payment_status ?? null,
+      payment_record_status: entry.payment_reference
+        ? paymentRecordsByReference.get(entry.payment_reference)?.status ?? null
+        : null,
+      provider_status: entry.payment_reference
+        ? paymentRecordsByReference.get(entry.payment_reference)?.provider_status ?? null
+        : null,
+      provider_payment_id: entry.payment_reference
+        ? paymentRecordsByReference.get(entry.payment_reference)?.provider_payment_id ?? null
+        : null,
+      payment_verified_at: entry.payment_reference
+        ? paymentRecordsByReference.get(entry.payment_reference)?.verified_at ?? null
+        : null,
       status: entry.status ?? "pending",
       ticket_emailed: entry.ticket_emailed ?? null,
       age: entry.age ?? null,
@@ -901,6 +921,56 @@ export const listCompetitionEntriesByCompetition = query({
       created_at: entry.created_at ?? null,
       updated_at: entry.updated_at ?? null,
     }));
+  },
+});
+
+export const getPaymentReconciliationTimeline = query({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx as any);
+    const events = (await ctx.db
+      .query("payment_reconciliation_events")
+      .withIndex("by_payment_reference_and_occurred_at", (q) => q.eq("payment_reference", args.paymentReference))
+      .order("desc")
+      .take(50)) as any[];
+
+    return events.map((event) => ({
+      id: String(event._id),
+      channel: event.channel,
+      event_type: event.event_type,
+      payment_reference: event.payment_reference,
+      provider_payment_id: event.provider_payment_id ?? null,
+      status_before: event.status_before ?? null,
+      status_after: event.status_after ?? null,
+      parsed_provider_status: event.parsed_provider_status ?? null,
+      signature_valid: event.signature_valid ?? null,
+      merchant_match: event.merchant_match ?? null,
+      amount_match: event.amount_match ?? null,
+      duplicate_detected: event.duplicate_detected ?? null,
+      processing_result: event.processing_result ?? null,
+      error_message: event.error_message ?? null,
+      raw_response_status: event.raw_response_status ?? null,
+      occurred_at: event.occurred_at,
+    }));
+  },
+});
+
+export const retryPayfastPaymentReconciliation = action({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    const adminState = await ctx.runQuery((internal as any).admin.getCurrentAdminStateInternal, {});
+    if (!adminState?.isAdmin) {
+      throw new Error("Unauthorized");
+    }
+
+    const result: any = await ctx.runAction((internal as any).paymentsNode.manuallyReconcilePayfastPayment, {
+      paymentReference: args.paymentReference,
+    });
+    return result;
   },
 });
 

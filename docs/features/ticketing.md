@@ -30,6 +30,8 @@ Competition ticket PDFs now use a shared HTML ticket layout:
 - the browser download route is rendered by the Netlify function at `/.netlify/functions/competition-ticket-pdf`
 - the email body uses the same ticket template source, but email PDF attachments require a public render URL reachable by Convex cloud
 
+Ticket delivery is downstream from payment completion. PayFast confirmation now finalizes the payment first and then attempts ticket side effects. Failed email or PDF side effects should be treated as delivery issues, not as payment-state blockers.
+
 In local development, browser PDF downloads work only when the site is served through Netlify dev. Running only raw Vite does not expose the PDF function route.
 
 ## Related Agent Docs

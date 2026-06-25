@@ -686,7 +686,7 @@ async function maybeSendCompetitionTicketEmail(
 async function processPayFastControlPayload(
   ctx: any,
   args: {
-    channel: "webhook" | "manual_recovery";
+    channel: "webhook" | "manual_recovery" | "internal_retry";
     payload: Record<string, string>;
     signature: string;
     rawInboundBody?: string;
@@ -1129,102 +1129,186 @@ export const payfastWebhook = httpAction(async (ctx, request) => {
   }
 });
 
+async function replayStoredPayfastWebhook(
+  ctx: any,
+  args: {
+    paymentReference: string;
+    channel: "manual_recovery" | "internal_retry";
+    requestedEventType: "manual_reconciliation_requested" | "internal_retry_requested";
+    succeededEventType: "manual_reconciliation_succeeded" | "internal_retry_succeeded";
+    failedEventType: "manual_reconciliation_failed" | "internal_retry_failed";
+    browserObservedPending?: boolean;
+    throwOnFailure?: boolean;
+  },
+) {
+  await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+    provider: "payfast",
+    channel: args.channel,
+    eventType: args.requestedEventType,
+    paymentReference: args.paymentReference,
+    processingResult: args.requestedEventType,
+  });
+
+  const paymentRecord: any = await ctx.runQuery(internal.payments.getPaymentRecordByReference, {
+    paymentReference: args.paymentReference,
+  });
+
+  if (args.browserObservedPending) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: "browser_return",
+      eventType: paymentRecord.status === "completed" ? "return_page_observed_completed" : "return_page_observed_pending",
+      paymentReference: args.paymentReference,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      processingResult:
+        paymentRecord.status === "completed"
+          ? "browser_return_observed_completed"
+          : "browser_return_observed_pending",
+    });
+  }
+
+  if (paymentRecord.provider !== "payfast") {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: args.failedEventType,
+      paymentReference: args.paymentReference,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      processingResult: "not_payfast_payment",
+      errorMessage: "Payment is not a PayFast payment",
+    });
+    if (args.throwOnFailure) {
+      throw new Error("Payment is not a PayFast payment");
+    }
+    return { success: false, pending: paymentRecord.status !== "completed", reason: "not_payfast_payment" };
+  }
+
+  if (paymentRecord.status === "completed") {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: args.succeededEventType,
+      paymentReference: args.paymentReference,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      statusAfter: paymentRecord.status,
+      duplicateDetected: true,
+      processingResult: "already_completed",
+    });
+    return { success: true, pending: false, reason: "already_completed" };
+  }
+
+  const reconciliationEvents: any[] = await ctx.runQuery(
+    internal.payments.listReconciliationEventsByPaymentReference,
+    { paymentReference: args.paymentReference },
+  );
+  const webhookReceipt = [...reconciliationEvents]
+    .reverse()
+    .find((event) => event.event_type === "webhook_received" && typeof event.raw_inbound_body === "string");
+
+  if (!webhookReceipt?.raw_inbound_body) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: args.failedEventType,
+      paymentReference: args.paymentReference,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      processingResult: "missing_webhook_payload",
+      errorMessage: "No stored webhook payload available for replay",
+    });
+    if (args.throwOnFailure) {
+      throw new Error("No stored webhook payload available for replay");
+    }
+    return { success: false, pending: true, reason: "missing_webhook_payload" };
+  }
+
+  const params = new URLSearchParams(webhookReceipt.raw_inbound_body);
+  const payload: Record<string, string> = {};
+  let signature = "";
+  params.forEach((value, key) => {
+    if (key === "signature") {
+      signature = value;
+    } else {
+      payload[key] = value;
+    }
+  });
+
+  try {
+    const result = await processPayFastControlPayload(ctx, {
+      channel: args.channel,
+      payload,
+      signature,
+      rawInboundBody: webhookReceipt.raw_inbound_body,
+      rawInboundHeaders: webhookReceipt.raw_inbound_headers ?? undefined,
+    });
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: args.succeededEventType,
+      paymentReference: args.paymentReference,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      statusAfter: result?.success && !result?.pending ? "completed" : paymentRecord.status,
+      processingResult:
+        result?.pending ? `${args.channel}_pending` : `${args.channel}_completed`,
+    });
+    return result;
+  } catch (error) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: args.failedEventType,
+      paymentReference: args.paymentReference,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      processingResult: `${args.channel}_failed`,
+      errorMessage: error instanceof Error ? error.message : "PayFast replay failed",
+    });
+    if (args.throwOnFailure) {
+      throw error;
+    }
+    return {
+      success: false,
+      pending: true,
+      reason: error instanceof Error ? error.message : "PayFast replay failed",
+    };
+  }
+}
+
 export const manuallyReconcilePayfastPayment = internalAction({
   args: {
     paymentReference: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
-      provider: "payfast",
+    return await replayStoredPayfastWebhook(ctx, {
+      paymentReference: args.paymentReference,
       channel: "manual_recovery",
-      eventType: "manual_reconciliation_requested",
+      requestedEventType: "manual_reconciliation_requested",
+      succeededEventType: "manual_reconciliation_succeeded",
+      failedEventType: "manual_reconciliation_failed",
+      throwOnFailure: true,
+    });
+  },
+});
+
+export const retryPendingPayfastPayment = action({
+  args: {
+    paymentReference: v.string(),
+    source: v.union(v.literal("browser_return"), v.literal("admin")),
+  },
+  handler: async (ctx, args) => {
+    return await replayStoredPayfastWebhook(ctx, {
       paymentReference: args.paymentReference,
-      processingResult: "manual_reconciliation_requested",
+      channel: "internal_retry",
+      requestedEventType: "internal_retry_requested",
+      succeededEventType: "internal_retry_succeeded",
+      failedEventType: "internal_retry_failed",
+      browserObservedPending: args.source === "browser_return",
+      throwOnFailure: false,
     });
-
-    const paymentRecord: any = await ctx.runQuery(internal.payments.getPaymentRecordByReference, {
-      paymentReference: args.paymentReference,
-    });
-
-    if (paymentRecord.provider !== "payfast") {
-      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
-        provider: "payfast",
-        channel: "manual_recovery",
-        eventType: "manual_reconciliation_failed",
-        paymentReference: args.paymentReference,
-        paymentRecordId: paymentRecord._id,
-        statusBefore: paymentRecord.status,
-        processingResult: "not_payfast_payment",
-        errorMessage: "Payment is not a PayFast payment",
-      });
-      throw new Error("Payment is not a PayFast payment");
-    }
-
-    const reconciliationEvents: any[] = await ctx.runQuery(
-      internal.payments.listReconciliationEventsByPaymentReference,
-      { paymentReference: args.paymentReference },
-    );
-    const webhookReceipt = [...reconciliationEvents]
-      .reverse()
-      .find((event) => event.event_type === "webhook_received" && typeof event.raw_inbound_body === "string");
-
-    if (!webhookReceipt?.raw_inbound_body) {
-      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
-        provider: "payfast",
-        channel: "manual_recovery",
-        eventType: "manual_reconciliation_failed",
-        paymentReference: args.paymentReference,
-        paymentRecordId: paymentRecord._id,
-        statusBefore: paymentRecord.status,
-        processingResult: "missing_webhook_payload",
-        errorMessage: "No stored webhook payload available for replay",
-      });
-      throw new Error("No stored webhook payload available for replay");
-    }
-
-    const params = new URLSearchParams(webhookReceipt.raw_inbound_body);
-    const payload: Record<string, string> = {};
-    let signature = "";
-    params.forEach((value, key) => {
-      if (key === "signature") {
-        signature = value;
-      } else {
-        payload[key] = value;
-      }
-    });
-
-    try {
-      const result = await processPayFastControlPayload(ctx, {
-        channel: "manual_recovery",
-        payload,
-        signature,
-        rawInboundBody: webhookReceipt.raw_inbound_body,
-        rawInboundHeaders: webhookReceipt.raw_inbound_headers ?? undefined,
-      });
-      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
-        provider: "payfast",
-        channel: "manual_recovery",
-        eventType: "manual_reconciliation_succeeded",
-        paymentReference: args.paymentReference,
-        paymentRecordId: paymentRecord._id,
-        statusBefore: paymentRecord.status,
-        statusAfter: result?.success && !result?.pending ? "completed" : paymentRecord.status,
-        processingResult: result?.pending ? "manual_reconciliation_pending" : "manual_reconciliation_completed",
-      });
-      return result;
-    } catch (error) {
-      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
-        provider: "payfast",
-        channel: "manual_recovery",
-        eventType: "manual_reconciliation_failed",
-        paymentReference: args.paymentReference,
-        paymentRecordId: paymentRecord._id,
-        statusBefore: paymentRecord.status,
-        processingResult: "manual_reconciliation_failed",
-        errorMessage: error instanceof Error ? error.message : "Manual reconciliation failed",
-      });
-      throw error;
-    }
   },
 });
 

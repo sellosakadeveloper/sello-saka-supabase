@@ -9,7 +9,7 @@ There are two practical local development modes in this repo:
 
 ## Standard App Loop
 
-Use the standard app loop when working on normal frontend pages, Convex queries and mutations, admin screens, and auth:
+Use the standard app loop when working on normal frontend pages, Convex queries and mutations, admin screens, auth, and most payment/reconciliation logic:
 
 ```powershell
 .\node_modules\.bin\convex.cmd dev
@@ -48,11 +48,25 @@ Competition ticket rendering is split across two environments:
 
 Because Convex runs remotely, it cannot fetch a local `localhost` Netlify function URL for email attachments.
 
+## PayFast Reconciliation Testing
+
+You do not need Netlify dev to test the hardened PayFast webhook and reconciliation flow itself. The core PayFast flow now lives in Convex:
+
+- checkout initialization
+- webhook capture
+- signature verification
+- provider validation
+- payment finalization
+- retry and manual reconciliation replay
+
+Netlify dev is only needed when you also need to test browser ticket PDF downloads from the local site.
+
 ## Environment Notes
 
 - `SITE_URL` should point to the public site URL in deployed environments
 - `TICKET_PDF_RENDER_URL` can be set explicitly to a public Netlify function URL for ticket attachment rendering
 - local `localhost` values are intentionally ignored for server-side ticket attachment generation
+- `PAYFAST_SANDBOX` should be set explicitly for the environment you are testing so webhook validation and process URLs stay aligned
 
 ## Current Limitation
 

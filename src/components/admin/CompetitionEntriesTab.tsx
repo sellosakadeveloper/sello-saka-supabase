@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,14 +24,42 @@ interface CompetitionEntry {
   phone: string;
   ticket_number: string | null;
   proof_of_payment_url: string | null;
+  payment_method?: string | null;
+  payment_reference?: string | null;
+  payment_status?: string | null;
+  payment_record_status?: string | null;
+  provider_status?: string | null;
+  provider_payment_id?: string | null;
+  payment_verified_at?: string | null;
+  ticket_emailed?: boolean | null;
   status: string;
   created_at: string | null;
+}
+
+interface ReconciliationEvent {
+  id: string;
+  channel: string;
+  event_type: string;
+  payment_reference: string;
+  provider_payment_id: string | null;
+  status_before: string | null;
+  status_after: string | null;
+  parsed_provider_status: string | null;
+  signature_valid: boolean | null;
+  merchant_match: boolean | null;
+  amount_match: boolean | null;
+  duplicate_detected: boolean | null;
+  processing_result: string | null;
+  error_message: string | null;
+  raw_response_status: number | null;
+  occurred_at: string;
 }
 
 const CompetitionEntriesTab = () => {
   const [selectedCompetition, setSelectedCompetition] = useState<string>("");
   const [selectedEntry, setSelectedEntry] = useState<CompetitionEntry | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [retryingPaymentReference, setRetryingPaymentReference] = useState<string | null>(null);
   const { toast } = useToast();
 
   const competitions = useQuery(api.admin.listCompetitions) as Competition[] | undefined;
@@ -39,7 +67,22 @@ const CompetitionEntriesTab = () => {
     api.admin.listCompetitionEntriesByCompetition,
     selectedCompetition ? { competitionId: selectedCompetition as never } : "skip",
   ) as CompetitionEntry[] | undefined;
+  const reconciliationTimeline = useQuery(
+    api.admin.getPaymentReconciliationTimeline,
+    selectedEntry?.payment_reference ? { paymentReference: selectedEntry.payment_reference } : "skip",
+  ) as ReconciliationEvent[] | undefined;
   const updateEntryStatus = useMutation(api.admin.updateCompetitionEntryStatus);
+  const retryPayfastPaymentReconciliation = useAction(api.admin.retryPayfastPaymentReconciliation);
+
+  useEffect(() => {
+    if (!selectedEntry || !entries) {
+      return;
+    }
+    const refreshedEntry = entries.find((entry) => entry.id === selectedEntry.id);
+    if (refreshedEntry) {
+      setSelectedEntry(refreshedEntry);
+    }
+  }, [entries, selectedEntry]);
 
   const handleUpdateStatus = async (entryId: string, status: string) => {
     try {
@@ -64,6 +107,28 @@ const CompetitionEntriesTab = () => {
   const openDetails = (entry: CompetitionEntry) => {
     setSelectedEntry(entry);
     setShowDetails(true);
+  };
+
+  const handleRetryPayment = async (paymentReference: string) => {
+    try {
+      setRetryingPaymentReference(paymentReference);
+      const result = await retryPayfastPaymentReconciliation({ paymentReference });
+      toast({
+        title: result?.success ? "Reconciliation complete" : "Retry recorded",
+        description:
+          result?.success
+            ? "The stored PayFast evidence was replayed successfully."
+            : "The retry was recorded, but the payment still needs more evidence or another webhook.",
+      });
+    } catch (error) {
+      toast({
+        title: "Retry failed",
+        description: error instanceof Error ? error.message : "Payment reconciliation retry failed",
+        variant: "destructive",
+      });
+    } finally {
+      setRetryingPaymentReference(null);
+    }
   };
 
   if (competitions === undefined) {
@@ -180,6 +245,10 @@ const CompetitionEntriesTab = () => {
                   <div className="font-medium">{selectedEntry.ticket_number || "Pending"}</div>
                 </div>
                 <div>
+                  <Label className="text-gray-500">Payment Reference</Label>
+                  <div className="font-medium break-all">{selectedEntry.payment_reference || "-"}</div>
+                </div>
+                <div>
                   <Label className="text-gray-500">Status</Label>
                   <div>
                     <Badge
@@ -194,6 +263,28 @@ const CompetitionEntriesTab = () => {
                       {selectedEntry.status || "pending"}
                     </Badge>
                   </div>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Payment Status</Label>
+                  <div className="font-medium">{selectedEntry.payment_record_status || selectedEntry.payment_status || "-"}</div>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Provider Status</Label>
+                  <div className="font-medium">{selectedEntry.provider_status || "-"}</div>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Provider Payment ID</Label>
+                  <div className="font-medium break-all">{selectedEntry.provider_payment_id || "-"}</div>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Verified At</Label>
+                  <div className="font-medium">
+                    {selectedEntry.payment_verified_at ? new Date(selectedEntry.payment_verified_at).toLocaleString() : "-"}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Ticket Emailed</Label>
+                  <div className="font-medium">{selectedEntry.ticket_emailed ? "Yes" : "No"}</div>
                 </div>
                 <div>
                   <Label className="text-gray-500">Submission Date</Label>
@@ -229,6 +320,55 @@ const CompetitionEntriesTab = () => {
                     No proof of payment uploaded
                   </div>
                 )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-gray-500 block">Payment Reconciliation Timeline</Label>
+                  {selectedEntry.payment_reference &&
+                    selectedEntry.payment_method === "payfast" &&
+                    selectedEntry.payment_record_status !== "completed" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRetryPayment(selectedEntry.payment_reference!)}
+                      disabled={retryingPaymentReference === selectedEntry.payment_reference}
+                    >
+                      {retryingPaymentReference === selectedEntry.payment_reference
+                        ? "Retrying..."
+                        : "Retry PayFast Reconciliation"}
+                    </Button>
+                  )}
+                </div>
+                <div className="border rounded-lg bg-gray-50 p-3 space-y-3 max-h-64 overflow-y-auto">
+                  {reconciliationTimeline === undefined && (
+                    <div className="text-sm text-gray-500">Loading payment timeline...</div>
+                  )}
+                  {reconciliationTimeline && reconciliationTimeline.length === 0 && (
+                    <div className="text-sm text-gray-500">No reconciliation events recorded yet.</div>
+                  )}
+                  {reconciliationTimeline?.map((event) => (
+                    <div key={event.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-sm">{event.event_type}</div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(event.occurred_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {event.channel} | {event.processing_result || "no-result"}
+                      </div>
+                      {(event.status_before || event.status_after || event.parsed_provider_status) && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          {event.status_before || "-"} → {event.status_after || event.status_before || "-"} | provider: {event.parsed_provider_status || "-"}
+                        </div>
+                      )}
+                      {event.error_message && (
+                        <div className="text-xs text-red-600 mt-1">{event.error_message}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">

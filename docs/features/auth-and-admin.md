@@ -45,6 +45,19 @@ Admins do not assign raw passwords. Account activation and password reset both u
 
 Auth emails are sent through Resend from the configured `AUTH_EMAIL_FROM` address. Production setups should point this at a verified sender on the foundation's Resend-managed domain, for example `noreply@mail.sellosakafoundation.org`.
 
+## Admin Payment Troubleshooting
+
+Competition entry details now include operational payment support data for PayFast-backed entries:
+
+- payment reference
+- internal payment-record status
+- provider status and provider payment ID
+- verified timestamp
+- ticket emailed state
+- reconciliation timeline
+
+For entries that are still not internally completed, the admin view can trigger a PayFast reconciliation replay through Convex. This uses stored webhook evidence and is designed to remain idempotent.
+
 ## Architectural Notes
 
 The most important boundary here is between:

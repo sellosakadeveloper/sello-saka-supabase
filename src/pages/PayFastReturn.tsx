@@ -41,8 +41,8 @@ export function PayFastReturn() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<PaymentViewState>("verifying");
   const [message, setMessage] = useState("Please wait while we confirm your payment.");
-  const [sandboxReconcileAttempted, setSandboxReconcileAttempted] = useState(false);
-  const confirmSandboxPayfastReturn = useAction(api.paymentsNode.confirmSandboxPayfastReturn);
+  const [retryAttempted, setRetryAttempted] = useState(false);
+  const retryPendingPayfastPayment = useAction(api.paymentsNode.retryPendingPayfastPayment);
 
   const paymentReference = searchParams.get("payment_reference");
   const wasCancelled = searchParams.get("cancelled") === "1";
@@ -102,13 +102,13 @@ export function PayFastReturn() {
     }
 
     setStatus("pending");
-    setMessage("We are still waiting for gateway confirmation. If you completed payment, it should reflect shortly.");
+      setMessage("We are still waiting for gateway confirmation. If you completed payment, it should reflect shortly.");
   }, [navigate, paymentReference, paymentStatus, wasCancelled]);
 
   useEffect(() => {
     if (
       !paymentReference ||
-      sandboxReconcileAttempted ||
+      retryAttempted ||
       paymentStatus === undefined ||
       paymentStatus === null ||
       paymentStatus.status !== "pending" ||
@@ -118,35 +118,26 @@ export function PayFastReturn() {
       return;
     }
 
-    setSandboxReconcileAttempted(true);
+    setRetryAttempted(true);
 
     void (async () => {
       try {
-        const finalized = await confirmSandboxPayfastReturn({
+        const result = await retryPendingPayfastPayment({
           paymentReference,
+          source: "browser_return",
         });
-
-        if (finalized?.purpose === "competition_entry" && finalized?.competition_success) {
-          navigate(`/competition/success?payment_reference=${encodeURIComponent(finalized.competition_success.reference)}`, {
-            state: finalized.competition_success,
-          });
-          return;
-        }
-
-        if (finalized?.success) {
-          setStatus("success");
-          setMessage("Your donation payment has been confirmed.");
+        if (result?.success === false && result?.reason === "missing_webhook_payload") {
+          setMessage("We are still waiting for gateway confirmation. Your payment has not been matched to a webhook yet.");
         }
       } catch (error) {
-        console.error("Sandbox PayFast reconciliation failed:", error);
+        console.error("PayFast retry reconciliation failed:", error);
       }
     })();
   }, [
-    confirmSandboxPayfastReturn,
-    navigate,
     paymentReference,
     paymentStatus,
-    sandboxReconcileAttempted,
+    retryAttempted,
+    retryPendingPayfastPayment,
     wasCancelled,
   ]);
 
@@ -164,6 +155,13 @@ export function PayFastReturn() {
         return "Verification Issue";
     }
   }, [status]);
+
+  const returnPath = useMemo(() => {
+    if (paymentStatus && paymentStatus !== null && paymentStatus.purpose === "competition_entry") {
+      return "/competition";
+    }
+    return "/donate";
+  }, [paymentStatus]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -195,7 +193,7 @@ export function PayFastReturn() {
 
           {(status === "cancelled" || status === "error" || status === "pending") && (
             <button
-              onClick={() => navigate("/donate")}
+              onClick={() => navigate(returnPath)}
               className="w-full bg-blue-600 text-white rounded-xl py-3 font-semibold hover:bg-blue-700 transition-colors"
             >
               Return to Site

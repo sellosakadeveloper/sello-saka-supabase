@@ -1,7 +1,7 @@
-import { chromium } from "playwright";
+const { chromium } = require("playwright");
 
 function escapeHtml(value) {
-  return value
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -189,7 +189,7 @@ async function renderPdfBytes(details) {
   }
 }
 
-export const handler = async (event) => {
+async function handler(event) {
   try {
     let ticket = null;
 
@@ -237,4 +237,6 @@ export const handler = async (event) => {
       body: error instanceof Error ? error.message : "Internal Server Error",
     };
   }
-};
+}
+
+module.exports = { handler };

@@ -153,6 +153,39 @@ export default defineSchema({
     .index("by_payment_reference", ["payment_reference"])
     .index("by_idempotency_key", ["idempotency_key"]),
 
+  payment_reconciliation_events: defineTable({
+    provider: v.string(),
+    channel: v.string(),
+    event_type: v.string(),
+    payment_reference: v.string(),
+    provider_payment_id: v.optional(v.string()),
+    payment_record_id: v.optional(v.id("payment_records")),
+    status_before: v.optional(v.string()),
+    status_after: v.optional(v.string()),
+    raw_inbound_body: v.optional(v.string()),
+    raw_inbound_headers: v.optional(v.any()),
+    raw_outbound_url: v.optional(v.string()),
+    raw_outbound_method: v.optional(v.string()),
+    raw_outbound_body: v.optional(v.string()),
+    raw_response_status: v.optional(v.number()),
+    raw_response_body: v.optional(v.string()),
+    parsed_provider_status: v.optional(v.string()),
+    signature_valid: v.optional(v.boolean()),
+    signature_input: v.optional(v.string()),
+    signature_expected: v.optional(v.string()),
+    signature_received: v.optional(v.string()),
+    merchant_match: v.optional(v.boolean()),
+    amount_match: v.optional(v.boolean()),
+    duplicate_detected: v.optional(v.boolean()),
+    processing_result: v.optional(v.string()),
+    error_message: v.optional(v.string()),
+    occurred_at: v.string(),
+  })
+    .index("by_payment_reference_and_occurred_at", ["payment_reference", "occurred_at"])
+    .index("by_event_type_and_occurred_at", ["event_type", "occurred_at"])
+    .index("by_processing_result_and_occurred_at", ["processing_result", "occurred_at"])
+    .index("by_payment_record_id_and_occurred_at", ["payment_record_id", "occurred_at"]),
+
   resources: defineTable({
     title: v.string(),
     summary: v.optional(v.string()),

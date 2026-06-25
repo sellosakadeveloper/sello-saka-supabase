@@ -4,6 +4,36 @@ import { v } from "convex/values";
 
 type PaymentPurpose = "donation" | "competition_entry";
 type PaymentProvider = "payfast" | "paystack";
+type PaymentReconciliationChannel = "webhook" | "browser_return" | "manual_recovery" | "internal_retry";
+
+const paymentReconciliationEventTypes = [
+  "webhook_received",
+  "webhook_signature_verified",
+  "webhook_signature_failed",
+  "provider_validation_requested",
+  "provider_validation_succeeded",
+  "provider_validation_failed",
+  "payment_matched",
+  "payment_match_failed",
+  "payment_finalized",
+  "payment_finalize_skipped_duplicate",
+  "payment_finalize_failed",
+  "return_page_observed_pending",
+  "return_page_observed_completed",
+  "return_page_observed_missing_reference",
+  "return_page_observed_missing_payment_record",
+  "manual_reconciliation_requested",
+  "manual_reconciliation_succeeded",
+  "manual_reconciliation_failed",
+  "ticket_email_requested",
+  "ticket_email_succeeded",
+  "ticket_email_failed",
+  "ticket_pdf_requested",
+  "ticket_pdf_succeeded",
+  "ticket_pdf_failed",
+] as const;
+
+type PaymentReconciliationEventType = (typeof paymentReconciliationEventTypes)[number];
 
 type PaymentRecord = {
   _id: Id<"payment_records">;
@@ -723,5 +753,83 @@ export const getCompetitionTicketEmailData = internalQuery({
       entryId: paymentRecord.competition_entry_id,
       ticketPdfStorageId: entry.ticket_pdf_storage_id ?? null,
     };
+  },
+});
+
+export const appendReconciliationEvent = internalMutation({
+  args: {
+    provider: v.union(v.literal("payfast"), v.literal("paystack")),
+    channel: v.union(
+      v.literal("webhook"),
+      v.literal("browser_return"),
+      v.literal("manual_recovery"),
+      v.literal("internal_retry"),
+    ),
+    eventType: v.union(...paymentReconciliationEventTypes.map((value) => v.literal(value))),
+    paymentReference: v.string(),
+    providerPaymentId: v.optional(v.string()),
+    paymentRecordId: v.optional(v.id("payment_records")),
+    statusBefore: v.optional(v.string()),
+    statusAfter: v.optional(v.string()),
+    rawInboundBody: v.optional(v.string()),
+    rawInboundHeaders: v.optional(v.any()),
+    rawOutboundUrl: v.optional(v.string()),
+    rawOutboundMethod: v.optional(v.string()),
+    rawOutboundBody: v.optional(v.string()),
+    rawResponseStatus: v.optional(v.number()),
+    rawResponseBody: v.optional(v.string()),
+    parsedProviderStatus: v.optional(v.string()),
+    signatureValid: v.optional(v.boolean()),
+    signatureInput: v.optional(v.string()),
+    signatureExpected: v.optional(v.string()),
+    signatureReceived: v.optional(v.string()),
+    merchantMatch: v.optional(v.boolean()),
+    amountMatch: v.optional(v.boolean()),
+    duplicateDetected: v.optional(v.boolean()),
+    processingResult: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("payment_reconciliation_events", {
+      provider: args.provider,
+      channel: args.channel,
+      event_type: args.eventType,
+      payment_reference: args.paymentReference,
+      provider_payment_id: args.providerPaymentId,
+      payment_record_id: args.paymentRecordId,
+      status_before: args.statusBefore,
+      status_after: args.statusAfter,
+      raw_inbound_body: args.rawInboundBody,
+      raw_inbound_headers: args.rawInboundHeaders,
+      raw_outbound_url: args.rawOutboundUrl,
+      raw_outbound_method: args.rawOutboundMethod,
+      raw_outbound_body: args.rawOutboundBody,
+      raw_response_status: args.rawResponseStatus,
+      raw_response_body: args.rawResponseBody,
+      parsed_provider_status: args.parsedProviderStatus,
+      signature_valid: args.signatureValid,
+      signature_input: args.signatureInput,
+      signature_expected: args.signatureExpected,
+      signature_received: args.signatureReceived,
+      merchant_match: args.merchantMatch,
+      amount_match: args.amountMatch,
+      duplicate_detected: args.duplicateDetected,
+      processing_result: args.processingResult,
+      error_message: args.errorMessage,
+      occurred_at: new Date().toISOString(),
+    });
+  },
+});
+
+export const listReconciliationEventsByPaymentReference = internalQuery({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("payment_reconciliation_events")
+      .withIndex("by_payment_reference_and_occurred_at", (q) => q.eq("payment_reference", args.paymentReference))
+      .order("asc")
+      .take(200);
   },
 });

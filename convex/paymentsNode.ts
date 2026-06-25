@@ -1,4 +1,4 @@
-import { action, httpAction } from "./_generated/server";
+import { action, httpAction, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
@@ -232,6 +232,14 @@ function getPayFastValidateUrl(): string {
   return `${getPayFastBaseUrl()}/eng/query/validate`;
 }
 
+function headersToObject(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
+
 const PAYFAST_VALID_HOSTS = [
   "www.payfast.co.za",
   "sandbox.payfast.co.za",
@@ -264,8 +272,37 @@ function buildPayFastQueryString(data: Record<string, string>, passphrase?: stri
   return segments.join("&");
 }
 
+function buildPayFastItnSignatureString(data: Record<string, string>, passphrase?: string): string {
+  const segments: string[] = [];
+
+  Object.keys(data).forEach((key) => {
+    const value = data[key];
+    if (key === "signature" || value === undefined || value === null) {
+      return;
+    }
+    segments.push(`${key}=${encodeURIComponent(String(value).trim()).replace(/%20/g, "+")}`);
+  });
+
+  if (passphrase) {
+    segments.push(`passphrase=${encodeURIComponent(passphrase.trim()).replace(/%20/g, "+")}`);
+  }
+
+  return segments.join("&");
+}
+
 function generatePayFastSignature(data: Record<string, string>, passphrase?: string): string {
   return md5Hex(buildPayFastQueryString(data, passphrase));
+}
+
+function generatePayFastItnSignature(data: Record<string, string>, passphrase?: string): {
+  signature: string;
+  input: string;
+} {
+  const input = buildPayFastItnSignatureString(data, passphrase);
+  return {
+    signature: md5Hex(input),
+    input,
+  };
 }
 
 function mapPayFastStatus(paymentStatus?: string): string {
@@ -354,23 +391,59 @@ async function warnIfPayFastSourceUnrecognized(request: Request): Promise<void> 
   }
 }
 
-async function assertPayFastServerConfirmation(payload: Record<string, string>): Promise<void> {
-  const response = await fetch(getPayFastValidateUrl(), {
+async function validatePayFastServerConfirmation(payload: Record<string, string>): Promise<{
+  requestUrl: string;
+  requestBody: string;
+  responseStatus: number;
+  responseBody: string;
+  valid: boolean;
+}> {
+  const requestUrl = getPayFastValidateUrl();
+  const requestBody = buildPayFastQueryString(payload);
+  const response = await fetch(requestUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: buildPayFastQueryString(payload),
+    body: requestBody,
   });
 
+  const responseBody = await response.text();
   if (!response.ok) {
-    throw new Error(`PayFast server confirmation failed with status ${response.status}`);
+    return {
+      requestUrl,
+      requestBody,
+      responseStatus: response.status,
+      responseBody,
+      valid: false,
+    };
   }
 
-  const confirmation = (await response.text()).trim().toUpperCase();
-  if (confirmation !== "VALID") {
-    throw new PayFastValidationError(`PayFast server confirmation returned ${confirmation || "EMPTY"}`);
+  const confirmation = responseBody.trim().toUpperCase();
+  return {
+    requestUrl,
+    requestBody,
+    responseStatus: response.status,
+    responseBody,
+    valid: confirmation === "VALID",
+  };
+}
+
+async function assertPayFastServerConfirmation(payload: Record<string, string>): Promise<{
+  requestUrl: string;
+  requestBody: string;
+  responseStatus: number;
+  responseBody: string;
+}> {
+  const result = await validatePayFastServerConfirmation(payload);
+  if (!result.valid) {
+    throw new PayFastValidationError(
+      result.responseStatus >= 400
+        ? `PayFast server confirmation failed with status ${result.responseStatus}`
+        : `PayFast server confirmation returned ${result.responseBody.trim().toUpperCase() || "EMPTY"}`,
+    );
   }
+  return result;
 }
 
 function toFixedAmount(value?: string): string | null {
@@ -610,6 +683,264 @@ async function maybeSendCompetitionTicketEmail(
   };
 }
 
+async function processPayFastControlPayload(
+  ctx: any,
+  args: {
+    channel: "webhook" | "manual_recovery";
+    payload: Record<string, string>;
+    signature: string;
+    rawInboundBody?: string;
+    rawInboundHeaders?: Record<string, string>;
+  },
+): Promise<any> {
+  const paymentReference = args.payload.m_payment_id;
+  if (!paymentReference) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "payment_match_failed",
+      paymentReference: "",
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      rawInboundBody: args.rawInboundBody,
+      rawInboundHeaders: args.rawInboundHeaders,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      processingResult: "missing_payment_reference",
+      errorMessage: "Missing m_payment_id",
+    });
+    throw new PayFastValidationError("Missing m_payment_id");
+  }
+
+  if (args.channel === "webhook") {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "webhook_received",
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      rawInboundBody: args.rawInboundBody,
+      rawInboundHeaders: args.rawInboundHeaders,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      processingResult: "received",
+    });
+  }
+
+  let paymentRecord: any;
+  try {
+    paymentRecord = await ctx.runQuery(internal.payments.getPaymentRecordByReference, {
+      paymentReference,
+    });
+  } catch (error) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "payment_match_failed",
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      rawInboundBody: args.rawInboundBody,
+      rawInboundHeaders: args.rawInboundHeaders,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      processingResult: "payment_record_not_found",
+      errorMessage: error instanceof Error ? error.message : "Payment record not found",
+    });
+    throw error;
+  }
+
+  await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+    provider: "payfast",
+    channel: args.channel,
+    eventType: "payment_matched",
+    paymentReference,
+    providerPaymentId: args.payload.pf_payment_id || undefined,
+    paymentRecordId: paymentRecord._id,
+    statusBefore: paymentRecord.status,
+    parsedProviderStatus: args.payload.payment_status || undefined,
+    processingResult: "matched_payment_record",
+  });
+
+  const expectedSignature = generatePayFastItnSignature(args.payload, getOptionalEnv("PAYFAST_PASSPHRASE"));
+  if (expectedSignature.signature !== args.signature) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "webhook_signature_failed",
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      signatureValid: false,
+      signatureInput: expectedSignature.input,
+      signatureExpected: expectedSignature.signature,
+      signatureReceived: args.signature,
+      processingResult: "invalid_signature",
+      errorMessage: "Invalid PayFast signature",
+    });
+    throw new PayFastValidationError("Invalid PayFast signature");
+  }
+
+  await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+    provider: "payfast",
+    channel: args.channel,
+    eventType: "webhook_signature_verified",
+    paymentReference,
+    providerPaymentId: args.payload.pf_payment_id || undefined,
+    paymentRecordId: paymentRecord._id,
+    statusBefore: paymentRecord.status,
+    parsedProviderStatus: args.payload.payment_status || undefined,
+    signatureValid: true,
+    signatureInput: expectedSignature.input,
+    signatureExpected: expectedSignature.signature,
+    signatureReceived: args.signature,
+    processingResult: "signature_valid",
+  });
+
+  const merchantMatch = args.payload.merchant_id === process.env.PAYFAST_MERCHANT_ID;
+  if (!merchantMatch) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "provider_validation_failed",
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      merchantMatch: false,
+      processingResult: "merchant_id_mismatch",
+      errorMessage: "Merchant ID mismatch",
+    });
+    throw new PayFastValidationError("Merchant ID mismatch");
+  }
+
+  try {
+    assertPayFastPaymentContext(args.payload, paymentRecord);
+  } catch (error) {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "provider_validation_failed",
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      merchantMatch: true,
+      amountMatch: false,
+      processingResult: "payment_context_mismatch",
+      errorMessage: error instanceof Error ? error.message : "Payment context mismatch",
+    });
+    throw error;
+  }
+
+  const validationRequestBody = buildPayFastQueryString(args.payload);
+  const validationUrl = getPayFastValidateUrl();
+  await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+    provider: "payfast",
+    channel: args.channel,
+    eventType: "provider_validation_requested",
+    paymentReference,
+    providerPaymentId: args.payload.pf_payment_id || undefined,
+    paymentRecordId: paymentRecord._id,
+    statusBefore: paymentRecord.status,
+    parsedProviderStatus: args.payload.payment_status || undefined,
+    signatureValid: true,
+    merchantMatch: true,
+    amountMatch: true,
+    rawOutboundUrl: validationUrl,
+    rawOutboundMethod: "POST",
+    rawOutboundBody: validationRequestBody,
+    processingResult: "validation_requested",
+  });
+
+  const validationResult = await validatePayFastServerConfirmation(args.payload);
+  if (!validationResult.valid) {
+    const validationError =
+      validationResult.responseStatus >= 400
+        ? `PayFast server confirmation failed with status ${validationResult.responseStatus}`
+        : `PayFast server confirmation returned ${validationResult.responseBody.trim().toUpperCase() || "EMPTY"}`;
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: args.channel,
+      eventType: "provider_validation_failed",
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      paymentRecordId: paymentRecord._id,
+      statusBefore: paymentRecord.status,
+      parsedProviderStatus: args.payload.payment_status || undefined,
+      signatureValid: true,
+      merchantMatch: true,
+      amountMatch: true,
+      rawOutboundUrl: validationResult.requestUrl,
+      rawOutboundMethod: "POST",
+      rawOutboundBody: validationResult.requestBody,
+      rawResponseStatus: validationResult.responseStatus,
+      rawResponseBody: validationResult.responseBody,
+      processingResult: "validation_failed",
+      errorMessage: validationError,
+    });
+    throw new PayFastValidationError(validationError);
+  }
+
+  await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+    provider: "payfast",
+    channel: args.channel,
+    eventType: "provider_validation_succeeded",
+    paymentReference,
+    providerPaymentId: args.payload.pf_payment_id || undefined,
+    paymentRecordId: paymentRecord._id,
+    statusBefore: paymentRecord.status,
+    parsedProviderStatus: args.payload.payment_status || undefined,
+    signatureValid: true,
+    merchantMatch: true,
+    amountMatch: true,
+    rawOutboundUrl: validationResult.requestUrl,
+    rawOutboundMethod: "POST",
+    rawOutboundBody: validationResult.requestBody,
+    rawResponseStatus: validationResult.responseStatus,
+    rawResponseBody: validationResult.responseBody,
+    processingResult: "validation_succeeded",
+  });
+
+  const mappedStatus = mapPayFastStatus(args.payload.payment_status);
+  const amountGross = Number(args.payload.amount_gross || args.payload.amount || 0);
+  if (mappedStatus !== "completed") {
+    await ctx.runMutation(internal.payments.recordGatewayStatus, {
+      paymentReference,
+      providerPaymentId: args.payload.pf_payment_id || undefined,
+      providerStatus: args.payload.payment_status || undefined,
+      providerPayload: args.payload,
+      status: mappedStatus,
+      amount: amountGross || undefined,
+    });
+    return { success: true, pending: true, paymentReference, mappedStatus };
+  }
+
+  const finalized: any = await ctx.runMutation(internal.payments.finalizeVerifiedPayment, {
+    paymentReference,
+    provider: "payfast",
+    providerPaymentId: args.payload.pf_payment_id || undefined,
+    providerStatus: args.payload.payment_status || undefined,
+    providerPayload: args.payload,
+    amount: amountGross || undefined,
+  });
+
+  await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+    provider: "payfast",
+    channel: args.channel,
+    eventType: paymentRecord.status === "completed" ? "payment_finalize_skipped_duplicate" : "payment_finalized",
+    paymentReference,
+    providerPaymentId: args.payload.pf_payment_id || undefined,
+    paymentRecordId: paymentRecord._id,
+    statusBefore: paymentRecord.status,
+    statusAfter: "completed",
+    parsedProviderStatus: args.payload.payment_status || undefined,
+    duplicateDetected: paymentRecord.status === "completed",
+    processingResult: paymentRecord.status === "completed" ? "duplicate_ignored" : "payment_completed",
+  });
+
+  return await maybeSendCompetitionTicketEmail(ctx, finalized);
+}
+
 export const createPayment = action({
   args: {
     idempotencyKey: v.string(),
@@ -767,6 +1098,7 @@ export const payfastWebhook = httpAction(async (ctx, request) => {
     getRequiredEnv("PAYFAST_MERCHANT_ID");
 
     const body = await request.text();
+    const inboundHeaders = headersToObject(request.headers);
     const params = new URLSearchParams(body);
     const payload: Record<string, string> = {};
     let signature = "";
@@ -778,53 +1110,14 @@ export const payfastWebhook = httpAction(async (ctx, request) => {
         payload[key] = value;
       }
     });
-
-    const paymentReference = payload.m_payment_id;
-    if (!paymentReference) {
-      return new Response("Missing m_payment_id", { status: 400 });
-    }
-
-    const paymentRecord: any = await ctx.runQuery(internal.payments.getPaymentRecordByReference, {
-      paymentReference,
-    });
-
-    const expectedSignature = generatePayFastSignature(payload, getOptionalEnv("PAYFAST_PASSPHRASE"));
-    if (expectedSignature !== signature) {
-      throw new PayFastValidationError("Invalid PayFast signature");
-    }
-
-    if (payload.merchant_id !== process.env.PAYFAST_MERCHANT_ID) {
-      throw new PayFastValidationError("Merchant ID mismatch");
-    }
-
-    assertPayFastPaymentContext(payload, paymentRecord);
     await warnIfPayFastSourceUnrecognized(request);
-    await assertPayFastServerConfirmation(payload);
-
-    const mappedStatus = mapPayFastStatus(payload.payment_status);
-    const amountGross = Number(payload.amount_gross || payload.amount || 0);
-    if (mappedStatus !== "completed") {
-      await ctx.runMutation(internal.payments.recordGatewayStatus, {
-        paymentReference,
-        providerPaymentId: payload.pf_payment_id || undefined,
-        providerStatus: payload.payment_status || undefined,
-        providerPayload: payload,
-        status: mappedStatus,
-        amount: amountGross || undefined,
-      });
-      return new Response("OK", { status: 200 });
-    }
-
-    const finalized: any = await ctx.runMutation(internal.payments.finalizeVerifiedPayment, {
-      paymentReference,
-      provider: "payfast",
-      providerPaymentId: payload.pf_payment_id || undefined,
-      providerStatus: payload.payment_status || undefined,
-      providerPayload: payload,
-      amount: amountGross || undefined,
+    await processPayFastControlPayload(ctx, {
+      channel: "webhook",
+      payload,
+      signature,
+      rawInboundBody: body,
+      rawInboundHeaders: inboundHeaders,
     });
-
-    await maybeSendCompetitionTicketEmail(ctx, finalized);
 
     return new Response("OK", { status: 200 });
   } catch (error) {
@@ -834,6 +1127,105 @@ export const payfastWebhook = httpAction(async (ctx, request) => {
     }
     return new Response("Internal Server Error", { status: 500 });
   }
+});
+
+export const manuallyReconcilePayfastPayment = internalAction({
+  args: {
+    paymentReference: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+      provider: "payfast",
+      channel: "manual_recovery",
+      eventType: "manual_reconciliation_requested",
+      paymentReference: args.paymentReference,
+      processingResult: "manual_reconciliation_requested",
+    });
+
+    const paymentRecord: any = await ctx.runQuery(internal.payments.getPaymentRecordByReference, {
+      paymentReference: args.paymentReference,
+    });
+
+    if (paymentRecord.provider !== "payfast") {
+      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+        provider: "payfast",
+        channel: "manual_recovery",
+        eventType: "manual_reconciliation_failed",
+        paymentReference: args.paymentReference,
+        paymentRecordId: paymentRecord._id,
+        statusBefore: paymentRecord.status,
+        processingResult: "not_payfast_payment",
+        errorMessage: "Payment is not a PayFast payment",
+      });
+      throw new Error("Payment is not a PayFast payment");
+    }
+
+    const reconciliationEvents: any[] = await ctx.runQuery(
+      internal.payments.listReconciliationEventsByPaymentReference,
+      { paymentReference: args.paymentReference },
+    );
+    const webhookReceipt = [...reconciliationEvents]
+      .reverse()
+      .find((event) => event.event_type === "webhook_received" && typeof event.raw_inbound_body === "string");
+
+    if (!webhookReceipt?.raw_inbound_body) {
+      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+        provider: "payfast",
+        channel: "manual_recovery",
+        eventType: "manual_reconciliation_failed",
+        paymentReference: args.paymentReference,
+        paymentRecordId: paymentRecord._id,
+        statusBefore: paymentRecord.status,
+        processingResult: "missing_webhook_payload",
+        errorMessage: "No stored webhook payload available for replay",
+      });
+      throw new Error("No stored webhook payload available for replay");
+    }
+
+    const params = new URLSearchParams(webhookReceipt.raw_inbound_body);
+    const payload: Record<string, string> = {};
+    let signature = "";
+    params.forEach((value, key) => {
+      if (key === "signature") {
+        signature = value;
+      } else {
+        payload[key] = value;
+      }
+    });
+
+    try {
+      const result = await processPayFastControlPayload(ctx, {
+        channel: "manual_recovery",
+        payload,
+        signature,
+        rawInboundBody: webhookReceipt.raw_inbound_body,
+        rawInboundHeaders: webhookReceipt.raw_inbound_headers ?? undefined,
+      });
+      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+        provider: "payfast",
+        channel: "manual_recovery",
+        eventType: "manual_reconciliation_succeeded",
+        paymentReference: args.paymentReference,
+        paymentRecordId: paymentRecord._id,
+        statusBefore: paymentRecord.status,
+        statusAfter: result?.success && !result?.pending ? "completed" : paymentRecord.status,
+        processingResult: result?.pending ? "manual_reconciliation_pending" : "manual_reconciliation_completed",
+      });
+      return result;
+    } catch (error) {
+      await ctx.runMutation(internal.payments.appendReconciliationEvent, {
+        provider: "payfast",
+        channel: "manual_recovery",
+        eventType: "manual_reconciliation_failed",
+        paymentReference: args.paymentReference,
+        paymentRecordId: paymentRecord._id,
+        statusBefore: paymentRecord.status,
+        processingResult: "manual_reconciliation_failed",
+        errorMessage: error instanceof Error ? error.message : "Manual reconciliation failed",
+      });
+      throw error;
+    }
+  },
 });
 
 export const paystackWebhook = httpAction(async (ctx, request) => {

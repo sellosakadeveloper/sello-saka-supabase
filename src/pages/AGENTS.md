@@ -15,12 +15,13 @@ Pages own route-level composition, page metadata such as document titles, and fe
 - Pages should assemble shared components rather than duplicating shared layout fragments.
 - Avoid moving reusable admin or UI logic into pages when a component boundary already exists.
 - For migrated public and admin-content flows, pages should consume Convex-backed queries and mutations through local feature components or hooks.
-- Keep Supabase usage in pages only where the route still depends on the legacy admin auth gate that has not been cut over yet.
+- Do not add new Supabase runtime usage in pages. The active route layer is Convex-backed.
 
 ## Current Patterns
 
 - `ResourceHub.tsx` owns route-specific resource fetching and filtering.
 - `Competition.tsx`, `Donate.tsx`, `PayFastReturn.tsx`, `Apply.tsx`, `Contact.tsx`, `ActiveImpactStories.tsx`, and `ActiveTeams.tsx` already use Convex-backed data paths.
+- `PayFastReturn.tsx` is a generic payment-return observer that reads canonical payment state and can trigger safe reconciliation retries for pending PayFast records.
 - `Admin.tsx` owns admin authentication gating and tab-level composition, while the admin tabs themselves are now Convex-backed.
 - Content-heavy public pages follow a route-per-page pattern.
 

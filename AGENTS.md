@@ -8,6 +8,15 @@ This file applies to the entire repository unless a deeper `AGENTS.md` overrides
 
 This repo contains a Vite + React + TypeScript frontend backed by Convex. The main frontend entrypoints are `src/main.tsx` and `src/App.tsx`. Route registration is centralized in `src/App.tsx`.
 
+The live product currently includes:
+
+- a public foundation website
+- competition entry and donation flows
+- PayFast payment handling with reconciliation support
+- Convex Auth-backed admin access
+- admin CRUD for competitions, entries, users, resources, teams, metrics, stories, applications, and contact submissions
+- Netlify-backed ticket PDF downloads
+
 ## Directory Boundaries
 
 - Put route-level screens in `src/pages`.
@@ -32,6 +41,7 @@ This repo contains a Vite + React + TypeScript frontend backed by Convex. The ma
 - Human-facing architecture and feature docs live under `docs/`.
 - Agent-facing guidance should stay concise and operational.
 - Human-facing docs should explain structure and current behavior, not aspirational redesigns.
+- When repo structure, runtime boundaries, or active backend ownership changes, update both the relevant `docs/` pages and the local `AGENTS.md` files that describe those boundaries.
 
 ## Key References
 
@@ -39,6 +49,25 @@ This repo contains a Vite + React + TypeScript frontend backed by Convex. The ma
 - Repo layout overview: `docs/architecture/repo-layout.md`
 - Frontend architecture: `docs/architecture/frontend.md`
 - Data access architecture: `docs/architecture/data-access.md`
+- Admin architecture: `docs/architecture/admin.md`
+- Feature docs: `docs/features/competition.md`, `docs/features/donations.md`, `docs/features/auth-and-admin.md`, `docs/features/ticketing.md`
+- Local development operations: `docs/operations/local-development.md`
+
+## AGENTS Tree
+
+Update these when their owned subtree responsibilities change:
+
+- `AGENTS.md`
+- `src/AGENTS.md`
+- `src/pages/AGENTS.md`
+- `src/components/AGENTS.md`
+- `src/components/admin/AGENTS.md`
+- `src/components/ui/AGENTS.md`
+- `src/integrations/AGENTS.md`
+- `src/integrations/convex/AGENTS.md`
+- `convex/AGENTS.md`
+- `public/AGENTS.md`
+- `ticket_code/AGENTS.md`
 
 <!-- convex-ai-start -->
 

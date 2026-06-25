@@ -21,7 +21,7 @@ This subtree owns reusable presentation, layout helpers, animation wrappers, and
 - Prefer small, composable components over page-sized component files.
 - Keep props explicit and reusable.
 - Do not couple shared components directly to admin-only assumptions unless they live in `admin/`.
-- Do not hardwire Supabase into new shared components unless the component is explicitly serving the still-legacy admin auth flow.
+- Do not hardwire Supabase into new shared components. Shared components should remain backend-agnostic or Convex-consumable at the feature boundary.
 
 ## References
 

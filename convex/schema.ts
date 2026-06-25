@@ -127,6 +127,7 @@ export default defineSchema({
 
   payment_records: defineTable({
     payment_reference: v.string(),
+    idempotency_key: v.optional(v.string()),
     provider: v.string(),
     status: v.string(),
     purpose: v.string(),
@@ -148,7 +149,9 @@ export default defineSchema({
     completed_at: v.optional(v.string()),
     created_at: v.optional(v.string()),
     updated_at: v.optional(v.string()),
-  }).index("by_payment_reference", ["payment_reference"]),
+  })
+    .index("by_payment_reference", ["payment_reference"])
+    .index("by_idempotency_key", ["idempotency_key"]),
 
   resources: defineTable({
     title: v.string(),

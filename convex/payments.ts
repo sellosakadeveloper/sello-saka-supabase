@@ -8,6 +8,7 @@ type PaymentProvider = "payfast" | "paystack";
 type PaymentRecord = {
   _id: Id<"payment_records">;
   payment_reference: string;
+  idempotency_key?: string | null;
   provider: PaymentProvider;
   status: string;
   purpose: PaymentPurpose;
@@ -27,6 +28,8 @@ type PaymentRecord = {
   cancel_url?: string | null;
   verified_at?: string | null;
   completed_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 function getSiteUrl(siteUrl?: string): string {
@@ -48,6 +51,66 @@ async function getPaymentRecordByReferenceHelper(ctx: { db: any }, paymentRefere
   }
 
   return paymentRecord as PaymentRecord;
+}
+
+async function getPaymentRecordByIdempotencyKeyHelper(
+  ctx: { db: any },
+  idempotencyKey: string,
+): Promise<PaymentRecord | null> {
+  const paymentRecord = await ctx.db
+    .query("payment_records")
+    .withIndex("by_idempotency_key", (q: any) => q.eq("idempotency_key", idempotencyKey))
+    .unique();
+
+  return (paymentRecord as PaymentRecord | null) ?? null;
+}
+
+async function buildInitializedPaymentResponseFromRecord(
+  ctx: { db: any },
+  paymentRecord: PaymentRecord,
+) {
+  let itemName = "Donation";
+  let metadataCompetitionId: string | null = null;
+  let donationType: string | undefined;
+
+  if (paymentRecord.purpose === "competition_entry") {
+    if (!paymentRecord.competition_id) {
+      throw new Error("Competition payment record missing competition linkage");
+    }
+
+    const competition = await ctx.db.get(paymentRecord.competition_id);
+    if (!competition) {
+      throw new Error("Competition not found for payment");
+    }
+
+    itemName = competition.title ? `Competition Entry - ${competition.title}` : "Competition Entry";
+    metadataCompetitionId = String(paymentRecord.competition_id);
+  } else if (paymentRecord.purpose_context) {
+    donationType = paymentRecord.purpose_context;
+  }
+
+  return {
+    provider: paymentRecord.provider,
+    purpose: paymentRecord.purpose,
+    payment_reference: paymentRecord.payment_reference,
+    amount: paymentRecord.amount,
+    email: paymentRecord.payer_email,
+    payer_name: paymentRecord.payer_name,
+    payer_email: paymentRecord.payer_email,
+    payer_phone: paymentRecord.payer_phone || "",
+    return_url: paymentRecord.return_url || "",
+    cancel_url: paymentRecord.cancel_url || "",
+    item_name: itemName,
+    metadata: {
+      payment_reference: paymentRecord.payment_reference,
+      purpose: paymentRecord.purpose,
+      purpose_context: paymentRecord.purpose_context ?? null,
+      competition_id: metadataCompetitionId,
+      name: paymentRecord.payer_name,
+      phone: paymentRecord.payer_phone || undefined,
+      donation_type: donationType,
+    },
+  };
 }
 
 async function buildCompetitionSuccessPayload(
@@ -368,6 +431,7 @@ async function recordGatewayStatusHelper(ctx: { db: any }, args: {
 
 export const initializePaymentRecord = internalMutation({
   args: {
+    idempotencyKey: v.string(),
     purpose: v.union(v.literal("donation"), v.literal("competition_entry")),
     provider: v.union(v.literal("payfast"), v.literal("paystack")),
     name: v.string(),
@@ -379,7 +443,21 @@ export const initializePaymentRecord = internalMutation({
     site_url: v.string(),
   },
   handler: async (ctx, args) => {
+    const existingPaymentRecord = await getPaymentRecordByIdempotencyKeyHelper(ctx, args.idempotencyKey);
+    if (existingPaymentRecord) {
+      if (existingPaymentRecord.status === "pending" || existingPaymentRecord.status === "processing") {
+        return await buildInitializedPaymentResponseFromRecord(ctx, existingPaymentRecord);
+      }
+
+      if (existingPaymentRecord.status === "completed") {
+        throw new Error("This payment attempt has already been completed. Start a new payment attempt.");
+      }
+
+      throw new Error("This payment attempt is no longer reusable. Start a new payment attempt.");
+    }
+
     const paymentReference = generatePaymentReference();
+    const now = new Date().toISOString();
     const siteUrl = getSiteUrl(args.site_url);
     const returnUrl = `${siteUrl}/payfast-return?payment_reference=${encodeURIComponent(paymentReference)}`;
     const cancelUrl = `${siteUrl}/payfast-return?payment_reference=${encodeURIComponent(paymentReference)}&cancelled=1`;
@@ -405,7 +483,8 @@ export const initializePaymentRecord = internalMutation({
         donation_type: args.donation_type || "once",
         payment_method: args.provider,
         status: "pending",
-        created_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
       });
     } else {
       if (!args.competition_id) {
@@ -429,7 +508,8 @@ export const initializePaymentRecord = internalMutation({
         payment_reference: paymentReference,
         payment_status: "pending",
         status: "pending",
-        created_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
       });
       linkedCompetitionId = String(args.competition_id);
       purposeContext = linkedCompetitionId;
@@ -437,6 +517,7 @@ export const initializePaymentRecord = internalMutation({
 
     await ctx.db.insert("payment_records", {
       payment_reference: paymentReference,
+      idempotency_key: args.idempotencyKey,
       provider: args.provider,
       status: "pending",
       purpose: args.purpose,
@@ -451,8 +532,8 @@ export const initializePaymentRecord = internalMutation({
       competition_id: linkedCompetitionId ? (linkedCompetitionId as any) : undefined,
       return_url: returnUrl,
       cancel_url: cancelUrl,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     });
 
     return {

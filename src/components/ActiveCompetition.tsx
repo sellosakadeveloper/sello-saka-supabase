@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { HoverCard } from "@/components/animations/HoverCard";
 import { Link, useNavigate } from "react-router-dom";
+import { createPaymentAttemptKey } from "@/integrations/payments/idempotency";
 
 interface ActiveCompetitionProps {
     competition: {
@@ -34,6 +35,7 @@ const NLC_COMPLIANCE_URL = "https://www.nlcsa.org.za/regulatory-compliance/";
 const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const paymentAttemptKeyRef = useRef<string | null>(null);
     const [countdown, setCountdown] = useState({
         days: 0,
         hours: 0,
@@ -46,6 +48,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
         phone: "",
     });
     const createPayment = useAction(api.paymentsNode.createPayment);
+
+    const invalidatePaymentAttempt = () => {
+        paymentAttemptKeyRef.current = null;
+    };
 
     const submitHostedPaymentForm = (processUrl: string, formFields: Record<string, string>) => {
         console.log("Submitting PayFast form", {
@@ -104,7 +110,11 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
     const handlePayFast = async () => {
         setLoading(true);
         try {
+            const idempotencyKey = paymentAttemptKeyRef.current || createPaymentAttemptKey();
+            paymentAttemptKeyRef.current = idempotencyKey;
+
             const pfData = await createPayment({
+                idempotencyKey,
                 purpose: "competition_entry",
                 provider: "payfast",
                 competition_id: competition.id as never,
@@ -350,7 +360,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                         <Input
                                             id="name"
                                             value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            onChange={(e) => {
+                                                invalidatePaymentAttempt();
+                                                setFormData({ ...formData, name: e.target.value });
+                                            }}
                                             placeholder="Your name"
                                             required
                                             className="mt-2"
@@ -364,7 +377,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                             id="email"
                                             type="email"
                                             value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            onChange={(e) => {
+                                                invalidatePaymentAttempt();
+                                                setFormData({ ...formData, email: e.target.value });
+                                            }}
                                             placeholder="your@email.com"
                                             required
                                             className="mt-2"
@@ -378,7 +394,10 @@ const ActiveCompetition = ({ competition }: ActiveCompetitionProps) => {
                                             id="phone"
                                             type="tel"
                                             value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                            onChange={(e) => {
+                                                invalidatePaymentAttempt();
+                                                setFormData({ ...formData, phone: e.target.value });
+                                            }}
                                             placeholder="+27 12 345 6789"
                                             required
                                             className="mt-2"

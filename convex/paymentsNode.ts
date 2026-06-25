@@ -612,6 +612,7 @@ async function maybeSendCompetitionTicketEmail(
 
 export const createPayment = action({
   args: {
+    idempotencyKey: v.string(),
     purpose: v.union(v.literal("donation"), v.literal("competition_entry")),
     provider: v.union(v.literal("payfast"), v.literal("paystack")),
     name: v.string(),

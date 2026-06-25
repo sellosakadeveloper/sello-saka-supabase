@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card } from "@/components/ui/card";
@@ -10,10 +10,12 @@ import { Heart, Smartphone, CheckCircle2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { createPaymentAttemptKey } from "@/integrations/payments/idempotency";
 
 const Donate = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const paymentAttemptKeyRef = useRef<string | null>(null);
   const [donationType, setDonationType] = useState("once");
   const [selectedAmount, setSelectedAmount] = useState("");
   const [customAmount, setCustomAmount] = useState("");
@@ -25,7 +27,12 @@ const Donate = () => {
 
   const createPayment = useAction(api.paymentsNode.createPayment);
 
+  const invalidatePaymentAttempt = () => {
+    paymentAttemptKeyRef.current = null;
+  };
+
   const resetForm = () => {
+    invalidatePaymentAttempt();
     setFormData({ name: "", email: "", phone: "" });
     setSelectedAmount("");
     setCustomAmount("");
@@ -66,7 +73,11 @@ const Donate = () => {
     }
 
     try {
+      const idempotencyKey = paymentAttemptKeyRef.current || createPaymentAttemptKey();
+      paymentAttemptKeyRef.current = idempotencyKey;
+
       const initData = await createPayment({
+        idempotencyKey,
         purpose: "donation",
         provider: "payfast",
         name: formData.name,
@@ -136,12 +147,20 @@ const Donate = () => {
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div>
                   <Label className="text-lg font-semibold mb-4 block">Donation Type</Label>
-                  <RadioGroup value={donationType} onValueChange={setDonationType} className="grid grid-cols-2 gap-4">
+                  <RadioGroup
+                    value={donationType}
+                    onValueChange={(value) => {
+                      invalidatePaymentAttempt();
+                      setDonationType(value);
+                    }}
+                    className="grid grid-cols-2 gap-4"
+                  >
                     <div>
                       <RadioGroupItem value="once" id="once" className="peer sr-only" />
                       <Label
                         htmlFor="once"
                         className="flex items-center justify-center rounded-lg border-2 border-navy-600 bg-white p-4 hover:bg-navy-primary/5 peer-data-[state=checked]:border-gold-600 peer-data-[state=checked]:bg-gold-600/10 cursor-pointer transition-all"
+                        onClick={invalidatePaymentAttempt}
                       >
                         <span className="font-semibold">One-Time</span>
                       </Label>
@@ -151,6 +170,7 @@ const Donate = () => {
                       <Label
                         htmlFor="monthly"
                         className="flex items-center justify-center rounded-lg border-2 border-navy-600 bg-white p-4 hover:bg-navy-primary/5 peer-data-[state=checked]:border-gold-600 peer-data-[state=checked]:bg-gold-600/10 cursor-pointer transition-all"
+                        onClick={invalidatePaymentAttempt}
                       >
                         <span className="font-semibold">Monthly</span>
                       </Label>
@@ -168,6 +188,7 @@ const Donate = () => {
                         variant={selectedAmount === amountOption ? "default" : "outline"}
                         className={selectedAmount === amountOption ? "bg-gold-600 hover:bg-gold-400 text-navy-primary" : "border-navy-600"}
                         onClick={() => {
+                          invalidatePaymentAttempt();
                           setSelectedAmount(amountOption);
                           setCustomAmount("");
                         }}
@@ -181,6 +202,7 @@ const Donate = () => {
                     placeholder="Custom amount"
                     value={customAmount}
                     onChange={(e) => {
+                      invalidatePaymentAttempt();
                       setCustomAmount(e.target.value);
                       setSelectedAmount("");
                     }}
@@ -195,7 +217,10 @@ const Donate = () => {
                     <Input
                       id="name"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => {
+                        invalidatePaymentAttempt();
+                        setFormData({ ...formData, name: e.target.value });
+                      }}
                       placeholder="Your name"
                       required
                       className="mt-2"
@@ -208,7 +233,10 @@ const Donate = () => {
                       id="email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                        invalidatePaymentAttempt();
+                        setFormData({ ...formData, email: e.target.value });
+                      }}
                       placeholder="your@email.com"
                       required
                       className="mt-2"
@@ -221,7 +249,10 @@ const Donate = () => {
                       id="phone"
                       type="tel"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => {
+                        invalidatePaymentAttempt();
+                        setFormData({ ...formData, phone: e.target.value });
+                      }}
                       placeholder="+27 65 832 4028"
                       className="mt-2"
                     />

@@ -182,6 +182,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.19(yaml@2.9.0))
+      tar-fs:
+        specifier: ^3.1.2
+        version: 3.1.2
       vaul:
         specifier: ^0.9.9
         version: 0.9.9(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

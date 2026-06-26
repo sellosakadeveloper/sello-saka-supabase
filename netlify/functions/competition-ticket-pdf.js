@@ -1,5 +1,6 @@
 const { chromium: playwrightChromium } = require("playwright-core");
 const serverlessChromium = require("@sparticuz/chromium");
+const path = require("node:path");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -199,7 +200,9 @@ async function launchBrowser() {
 
   return await playwrightChromium.launch({
     args: serverlessChromium.args,
-    executablePath: await serverlessChromium.executablePath(),
+    executablePath: await serverlessChromium.executablePath(
+      path.join(process.cwd(), "node_modules", "@sparticuz", "chromium", "bin"),
+    ),
     headless: true,
   });
 }

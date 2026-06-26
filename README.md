@@ -75,6 +75,7 @@ Start here:
 - [Auth And Admin](docs/features/auth-and-admin.md)
 - [Ticketing](docs/features/ticketing.md)
 - [Local Development](docs/operations/local-development.md)
+- [Production Release](docs/operations/production-release.md)
 
 Agent-facing guidance lives in the `AGENTS.md` tree:
 
@@ -160,6 +161,15 @@ Typical production flow:
 3. deploy the frontend / Netlify site
 4. confirm PayFast notify URL points to the production Convex HTTP action
 5. run a live smoke test for payment, admin access, ticket email, and ticket PDF download
+
+## Netlify Ticket PDF Notes
+
+The competition ticket PDF route has a deployment-specific packaging requirement:
+
+- local development uses `netlify dev`
+- deployed Netlify environments use `playwright-core` plus `@sparticuz/chromium`
+- Chromium `bin` assets must be shipped with the Netlify function artifact
+- Deploy Preview should be treated as the mandatory validation step before production merge for this flow
 
 ## Notes
 

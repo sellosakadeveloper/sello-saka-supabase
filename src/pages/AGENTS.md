@@ -22,8 +22,13 @@ Pages own route-level composition, page metadata such as document titles, and fe
 - `ResourceHub.tsx` owns route-specific resource fetching and filtering.
 - `Competition.tsx`, `Donate.tsx`, `PayFastReturn.tsx`, `Apply.tsx`, `Contact.tsx`, `ActiveImpactStories.tsx`, and `ActiveTeams.tsx` already use Convex-backed data paths.
 - `PayFastReturn.tsx` is a generic payment-return observer that reads canonical payment state and can trigger safe reconciliation retries for pending PayFast records.
+- `TicketSuccess.tsx` is the browser-side entrypoint for ticket download behavior and should keep the PDF route pointed at the Netlify function rather than duplicating PDF generation in the page layer.
 - `Admin.tsx` owns admin authentication gating and tab-level composition, while the admin tabs themselves are now Convex-backed.
 - Content-heavy public pages follow a route-per-page pattern.
+
+## Ticket PDF Note
+
+- When validating ticket download behavior, use a Netlify-backed origin such as `http://localhost:8888` locally or a Deploy Preview URL remotely. Raw Vite on `http://localhost:8080` does not own the Netlify function route.
 
 ## References
 

@@ -1,7 +1,13 @@
 import { BOOTSTRAP_ADMIN_EMAIL } from "./authHelpers";
 
 function getSiteUrl(): string {
-  const siteUrl = process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.PUBLIC_SITE_URL;
+  const siteUrl =
+    process.env.SITE_URL ||
+    process.env.DEPLOY_PRIME_URL ||
+    process.env.URL ||
+    process.env.DEPLOY_URL ||
+    process.env.VITE_SITE_URL ||
+    process.env.PUBLIC_SITE_URL;
   if (!siteUrl) {
     throw new Error("Missing SITE_URL");
   }

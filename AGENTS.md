@@ -52,6 +52,15 @@ The live product currently includes:
 - Admin architecture: `docs/architecture/admin.md`
 - Feature docs: `docs/features/competition.md`, `docs/features/donations.md`, `docs/features/auth-and-admin.md`, `docs/features/ticketing.md`
 - Local development operations: `docs/operations/local-development.md`
+- Production release operations: `docs/operations/production-release.md`
+
+## Netlify PDF Notes
+
+- The competition ticket PDF route is a Netlify Function at `/.netlify/functions/competition-ticket-pdf`.
+- Local browser testing for this route should go through `netlify dev`, not raw Vite.
+- Deployed Netlify environments use `playwright-core` with `@sparticuz/chromium`.
+- Only explicit `NETLIFY_LOCAL=true` should use local Playwright behavior.
+- If the ticket PDF flow changes, update both the human docs and the relevant `AGENTS.md` files in this tree.
 
 ## AGENTS Tree
 

@@ -1,4 +1,6 @@
-const { chromium } = require("playwright");
+const { chromium: playwrightChromium } = require("playwright-core");
+const serverlessChromium = require("@sparticuz/chromium");
+const path = require("node:path");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -166,7 +168,7 @@ async function fetchTicketData(paymentReference) {
 }
 
 async function renderPdfBytes(details) {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchBrowser();
   try {
     const page = await browser.newPage({
       viewport: { width: 980, height: 560 },
@@ -187,6 +189,22 @@ async function renderPdfBytes(details) {
   } finally {
     await browser.close();
   }
+}
+
+async function launchBrowser() {
+  const isLocalNetlify = process.env.NETLIFY_LOCAL === "true";
+  if (isLocalNetlify) {
+    const { chromium } = await import("playwright");
+    return await chromium.launch({ headless: true });
+  }
+
+  return await playwrightChromium.launch({
+    args: serverlessChromium.args,
+    executablePath: await serverlessChromium.executablePath(
+      path.join(process.cwd(), "node_modules", "@sparticuz", "chromium", "bin"),
+    ),
+    headless: true,
+  });
 }
 
 async function handler(event) {

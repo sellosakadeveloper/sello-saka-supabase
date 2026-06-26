@@ -98,6 +98,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.7
         version: 1.2.10(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@sparticuz/chromium':
+        specifier: ^138.0.2
+        version: 138.0.2
       '@tanstack/react-query':
         specifier: ^5.83.0
         version: 5.101.0(react@18.3.1)
@@ -122,6 +125,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@18.3.1)
+      follow-redirects:
+        specifier: ^1.16.0
+        version: 1.16.0(debug@4.4.3)
       framer-motion:
         specifier: ^12.23.24
         version: 12.40.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -176,6 +182,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.19(yaml@2.9.0))
+      tar-fs:
+        specifier: ^3.1.2
+        version: 3.1.2
       vaul:
         specifier: ^0.9.9
         version: 0.9.9(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2501,6 +2510,10 @@ packages:
 
   '@so-ric/colorspace@1.1.6':
     resolution: {integrity: sha512-/KiKkpHNOBgkFJwu9sh48LkHSMYGyuTcSFK/qMBdnOAlrRJzRSXAOFB5qwzaVQuDl8wAvHVMkaASQDReTahxuw==}
+
+  '@sparticuz/chromium@138.0.2':
+    resolution: {integrity: sha512-vs5qUiK6kFCzLCxZ2buWONcB6jdF3VWdYp6kH1tt56tZ78p51dMAxfWsfk9P62z/jAeqbVg4V6Rb3Ic4aAeOKQ==}
+    engines: {node: '>=20.11.0'}
 
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
@@ -6298,6 +6311,9 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
+  tar-fs@3.1.2:
+    resolution: {integrity: sha512-QGxxTxxyleAdyM3kpFs14ymbYmNFrfY+pHj7Z8FgtbZ7w2//VAgLMac7sT6nRpIHjppXO2AwwEOg0bPFVRcmXw==}
+
   tar-stream@3.2.0:
     resolution: {integrity: sha512-ojzvCvVaNp6aOTFmG7jaRD0meowIAuPc3cMMhSgKiVWws1GyHbGd/xvnyuRKcKlMpt3qvxx6r0hreCNITP9hIg==}
 
@@ -9028,6 +9044,16 @@ snapshots:
     dependencies:
       color: 5.0.3
       text-hex: 1.0.0
+
+  '@sparticuz/chromium@138.0.2':
+    dependencies:
+      follow-redirects: 1.16.0(debug@4.4.3)
+      tar-fs: 3.1.2
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - debug
+      - react-native-b4a
 
   '@stablelib/base64@1.0.1': {}
 
@@ -13288,6 +13314,18 @@ snapshots:
     transitivePeerDependencies:
       - tsx
       - yaml
+
+  tar-fs@3.1.2:
+    dependencies:
+      pump: 3.0.4
+      tar-stream: 3.2.0
+    optionalDependencies:
+      bare-fs: 4.7.2
+      bare-path: 3.0.1
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
 
   tar-stream@3.2.0:
     dependencies:

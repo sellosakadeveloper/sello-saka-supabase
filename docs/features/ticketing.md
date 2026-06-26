@@ -7,8 +7,7 @@ The ticketing area appears to be supported partly by application code and partly
 ## Relevant Source Areas
 
 - `src/pages/TicketSuccess.tsx`
-- `netlify/functions/competition-ticket-pdf.ts`
-- `src/integrations/tickets/template.ts`
+- `netlify/functions/competition-ticket-pdf.js`
 - `convex/paymentsNode.ts`
 - `ticket_code/README.md`
 - `ticket_code/layout.md`
@@ -28,11 +27,25 @@ For production delivery, these sender addresses should point at a verified Resen
 Competition ticket PDFs now use a shared HTML ticket layout:
 
 - the browser download route is rendered by the Netlify function at `/.netlify/functions/competition-ticket-pdf`
-- the email body uses the same ticket template source, but email PDF attachments require a public render URL reachable by Convex cloud
+- the browser PDF function is a CommonJS Netlify function that launches `playwright-core` against `@sparticuz/chromium`
+- deployed Netlify environments must package the Chromium `bin` assets with the function
+- the email body and browser PDF use the same ticket information model, but email PDF attachments require a public render URL reachable by Convex cloud
 
 Ticket delivery is downstream from payment completion. PayFast confirmation now finalizes the payment first and then attempts ticket side effects. Failed email or PDF side effects should be treated as delivery issues, not as payment-state blockers.
 
 In local development, browser PDF downloads work only when the site is served through Netlify dev. Running only raw Vite does not expose the PDF function route.
+
+## Deployment Notes
+
+The ticket PDF flow now depends on a specific Netlify packaging shape:
+
+- the deployed function should use the `esbuild` Netlify bundler
+- `playwright-core` stays externalized for the function package
+- `@sparticuz/chromium` must be bundled into the function artifact
+- `node_modules/@sparticuz/chromium/bin/**` must be included so the brotli assets are available at runtime
+- the function should treat only `NETLIFY_LOCAL=true` as the local Playwright path; all deployed environments should use the serverless Chromium path
+
+Deploy Previews are the correct place to validate this route before production because they exercise the same Netlify packaging behavior as the live site.
 
 ## Related Agent Docs
 

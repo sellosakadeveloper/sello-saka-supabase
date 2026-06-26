@@ -65,8 +65,25 @@ Netlify dev is only needed when you also need to test browser ticket PDF downloa
 
 - `SITE_URL` should point to the public site URL in deployed environments
 - `TICKET_PDF_RENDER_URL` can be set explicitly to a public Netlify function URL for ticket attachment rendering
+- Netlify Deploy Previews can rely on the app fallback chain for `SITE_URL`, which now prefers `DEPLOY_PRIME_URL` before generic host fallbacks
 - local `localhost` values are intentionally ignored for server-side ticket attachment generation
 - `PAYFAST_SANDBOX` should be set explicitly for the environment you are testing so webhook validation and process URLs stay aligned
+
+## Netlify PDF Function Notes
+
+The competition ticket PDF function has different behavior in local and deployed environments:
+
+- local `netlify dev` uses installed local Playwright
+- deployed Netlify environments use `playwright-core` with `@sparticuz/chromium`
+- the Chromium `bin` assets must be packaged with the function in deployed environments
+
+If the route fails, classify the problem first:
+
+1. Netlify build failure
+2. function bundling failure
+3. runtime module import failure
+4. serverless Chromium launch failure
+5. ticket data or PDF rendering logic failure
 
 ## Current Limitation
 

@@ -15,6 +15,7 @@
     "start": "vite preview --host 0.0.0.0 --port $PORT"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^138.0.2",
     "@auth/core": "0.41.1",
     "@convex-dev/auth": "^0.0.94",
     "@hookform/resolvers": "^3.10.0",

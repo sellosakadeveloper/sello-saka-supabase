@@ -31,3 +31,9 @@ This subtree currently owns:
 - PayFast and Paystack payment initialization
 - PayFast webhook verification and reconciliation
 - ticket email orchestration and related side-effect tracking
+
+## Ticket Delivery Boundary
+
+- Convex owns payment finalization, ticket metadata, email delivery orchestration, and any public render URL fallback logic for ticket PDFs.
+- Netlify owns the browser-accessible PDF rendering endpoint itself.
+- If attachment rendering or public PDF render URLs change, keep Convex-side environment fallback rules aligned with the Netlify deployment shape.

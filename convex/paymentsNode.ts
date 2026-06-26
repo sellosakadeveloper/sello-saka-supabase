@@ -538,7 +538,11 @@ function getTicketPdfRenderUrl(): string {
   if (explicit) {
     return isPublicTicketRenderUrl(explicit) ? explicit.replace(/\/$/, "") : "";
   }
-  const siteUrl = getOptionalEnv("SITE_URL");
+  const siteUrl =
+    getOptionalEnv("SITE_URL") ||
+    getOptionalEnv("DEPLOY_PRIME_URL") ||
+    getOptionalEnv("URL") ||
+    getOptionalEnv("DEPLOY_URL");
   if (!siteUrl || !/^https?:\/\//i.test(siteUrl)) {
     return "";
   }

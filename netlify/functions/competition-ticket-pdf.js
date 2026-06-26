@@ -1,4 +1,3 @@
-const { chromium: localChromium } = require("playwright");
 const { chromium: playwrightChromium } = require("playwright-core");
 const serverlessChromium = require("@sparticuz/chromium");
 
@@ -194,7 +193,8 @@ async function renderPdfBytes(details) {
 async function launchBrowser() {
   const isDeployedNetlify = process.env.NETLIFY === "true" && process.env.NETLIFY_LOCAL !== "true";
   if (!isDeployedNetlify) {
-    return await localChromium.launch({ headless: true });
+    const { chromium } = await import("playwright");
+    return await chromium.launch({ headless: true });
   }
 
   return await playwrightChromium.launch({

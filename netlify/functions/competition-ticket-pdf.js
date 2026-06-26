@@ -191,8 +191,8 @@ async function renderPdfBytes(details) {
 }
 
 async function launchBrowser() {
-  const isDeployedNetlify = process.env.NETLIFY === "true" && process.env.NETLIFY_LOCAL !== "true";
-  if (!isDeployedNetlify) {
+  const isLocalNetlify = process.env.NETLIFY_LOCAL === "true";
+  if (isLocalNetlify) {
     const { chromium } = await import("playwright");
     return await chromium.launch({ headless: true });
   }

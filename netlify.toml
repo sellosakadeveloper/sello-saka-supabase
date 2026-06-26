@@ -12,7 +12,7 @@
 
 [functions."competition-ticket-pdf"]
   node_bundler = "esbuild"
-  external_node_modules = ["playwright-core", "@sparticuz/chromium"]
+  external_node_modules = ["playwright-core"]
 
 [[redirects]]
   from = "/api/*"
